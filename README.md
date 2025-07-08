@@ -62,11 +62,45 @@ pip install -r requirements.txt
 
 ## 🧪 Run the Assistant
 
-Make sure your `client_tracking.csv` file is in the project root, then start the assistant:
+You can now load data from either a local CSV file or a Google Sheet!
+
+### Option 1: Using a Local CSV File
+
+Make sure your `client_tracking.csv` file is in the project root:
 
 ```bash
 python chat_interface.py
 ```
+
+### Option 2: Using Google Sheets
+
+You can provide a Google Sheets URL in three ways:
+
+1. **As a command line argument:**
+```bash
+python chat_interface.py "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
+```
+
+2. **Via environment variable:**
+```bash
+export CLIENT_DATA_SOURCE="https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
+python chat_interface.py
+```
+
+3. **Interactively when prompted:**
+```bash
+python chat_interface.py
+# Then enter the URL when asked
+```
+
+**Important**: Your Google Sheet must be publicly accessible (view-only is fine):
+- In Google Sheets: Share → Change to "Anyone with the link can view"
+
+### Supported Google Sheets Formats
+
+- Full URL: `https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit`
+- With specific sheet/tab: `https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit#gid=123`
+- Just the ID: `1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms`
 
 You'll see a prompt like:
 
