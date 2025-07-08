@@ -93,9 +93,11 @@ typing_extensions==4.14.1
 tzdata==2025.2
 urllib3==2.5.0
 uvicorn==0.35.0
+fastapi==0.115.6
 uvloop==0.21.0
 watchfiles==1.1.0
 websocket-client==1.8.0
 websockets==15.0.1
 zipp==3.23.0
 zstandard==0.23.0
+pinecone-client==5.0.1

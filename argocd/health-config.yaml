@@ -1,0 +1,76 @@
+# ArgoCD Health Configuration for Client Tracker Assistant
+# This configures custom health checks for the application components
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  # Custom health check for client-tracker API
+  resource.customizations.health.apps_v1_Deployment: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.conditions ~= nil then
+        for i, condition in ipairs(obj.status.conditions) do
+          if condition.type == "Progressing" and condition.status == "False" and condition.reason == "ProgressDeadlineExceeded" then
+            hs.status = "Degraded"
+            hs.message = "Deployment has exceeded its progress deadline"
+            return hs
+          end
+        end
+      end
+      if obj.spec.replicas ~= nil and obj.status.replicas ~= nil and obj.status.updatedReplicas ~= nil then
+        if obj.status.replicas == obj.spec.replicas and obj.status.updatedReplicas == obj.status.replicas then
+          if obj.status.availableReplicas ~= nil and obj.status.availableReplicas == obj.status.replicas then
+            hs.status = "Healthy"
+            hs.message = "Deployment is healthy"
+            return hs
+          else
+            hs.status = "Progressing"
+            hs.message = "Waiting for all replicas to be available"
+            return hs
+          end
+        else
+          hs.status = "Progressing"
+          hs.message = "Update in progress"
+          return hs
+        end
+      end
+    end
+    hs.status = "Progressing"
+    hs.message = "Waiting for deployment to report status"
+    return hs
+
+  # Custom health check for PVCs
+  resource.customizations.health.v1_PersistentVolumeClaim: |
+    hs = {}
+    if obj.status ~= nil then
+      if obj.status.phase ~= nil then
+        if obj.status.phase == "Bound" then
+          hs.status = "Healthy"
+          hs.message = "PVC is bound"
+          return hs
+        end
+        if obj.status.phase == "Pending" then
+          hs.status = "Progressing"
+          hs.message = "PVC is pending"
+          return hs
+        end
+      end
+    end
+    hs.status = "Progressing"
+    hs.message = "Waiting for PVC to be bound"
+    return hs
+
+  # Custom health check for Services
+  resource.customizations.health.v1_Service: |
+    hs = {}
+    if obj.spec.type == "LoadBalancer" and obj.status.loadBalancer.ingress == nil then
+      hs.status = "Progressing"
+      hs.message = "Waiting for LoadBalancer to be assigned"
+      return hs
+    end
+    hs.status = "Healthy"
+    hs.message = "Service is healthy"
+    return hs

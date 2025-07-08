@@ -1,0 +1,84 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: client-tracker
+  namespace: argocd
+spec:
+  description: Client Tracker Assistant Project
+  
+  # Source repositories
+  sourceRepos:
+    - 'https://github.com/smokingfive/client-tracker-assistant.git'
+    
+  # Destination clusters and namespaces
+  destinations:
+    # Production cluster
+    - namespace: 'client-tracker'
+      server: 'https://kubernetes.default.svc'
+    # Allow deployment to argocd namespace for secrets
+    - namespace: 'argocd'
+      server: 'https://kubernetes.default.svc'
+      
+  # Cluster resource whitelist
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRole
+    - group: 'rbac.authorization.k8s.io'
+      kind: ClusterRoleBinding
+      
+  # Namespace resource whitelist
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+      
+  # Roles for the project
+  roles:
+    # Admin role
+    - name: admin
+      description: 'Admin access to client-tracker project'
+      policies:
+        - p, proj:client-tracker:admin, applications, *, client-tracker/*, allow
+        - p, proj:client-tracker:admin, repositories, *, *, allow
+      groups:
+        - platform-team
+        
+    # Developer role
+    - name: developer
+      description: 'Developer access to client-tracker project'
+      policies:
+        - p, proj:client-tracker:developer, applications, get, client-tracker/*, allow
+        - p, proj:client-tracker:developer, applications, sync, client-tracker/*, allow
+        - p, proj:client-tracker:developer, applications, action/*, client-tracker/*, allow
+        - p, proj:client-tracker:developer, logs, get, client-tracker/*, allow
+        - p, proj:client-tracker:developer, exec, create, client-tracker/*, allow
+      groups:
+        - developers
+        
+    # Read-only role
+    - name: readonly
+      description: 'Read-only access to client-tracker project'
+      policies:
+        - p, proj:client-tracker:readonly, applications, get, client-tracker/*, allow
+        - p, proj:client-tracker:readonly, logs, get, client-tracker/*, allow
+      groups:
+        - readonly-users
+        
+  # Sync windows (optional - for controlling when deployments can happen)
+  syncWindows:
+    # Allow sync anytime for now
+    - kind: allow
+      schedule: '* * * * *'
+      duration: 24h
+      applications:
+        - '*'
+      manualSync: true
+      
+  # Orphaned resources monitoring
+  orphanedResources:
+    warn: true
+    
+  # Signature keys for signed commits (optional)
+  signatureKeys:
+    - keyID: ABCDEF1234567890

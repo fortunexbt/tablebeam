@@ -1,0 +1,79 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: client-tracker-assistant
+  namespace: argocd
+  # Finalizer to ensure app resources are deleted when ArgoCD app is deleted
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  # Project in ArgoCD (default is fine for most cases)
+  project: default
+  
+  # Source repository information
+  source:
+    repoURL: https://github.com/smokingfive/client-tracker-assistant.git
+    targetRevision: main
+    path: k8s/overlays/production
+    
+  # Destination cluster and namespace
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: client-tracker
+    
+  # Sync policy configuration
+  syncPolicy:
+    # Automated sync with self-healing and pruning
+    automated:
+      # Automatically sync when changes are detected
+      selfHeal: true
+      # Remove resources that are no longer defined in Git
+      prune: true
+      # Allow ArgoCD to prune resources during automated sync
+      allowEmpty: false
+    
+    # Sync options
+    syncOptions:
+      # Create namespace if it doesn't exist
+      - CreateNamespace=true
+      # Apply out of sync only - reduces resource usage
+      - ApplyOutOfSyncOnly=true
+      # Respect ignore differences annotations
+      - RespectIgnoreDifferences=true
+      # Server-side apply for better performance
+      - ServerSideApply=true
+      
+    # Retry configuration for failed syncs
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+        
+  # How resources are customized/ignored
+  ignoreDifferences:
+    # Ignore differences in metadata that Kubernetes adds
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas
+        - /metadata/annotations
+    # Ignore service account tokens that are auto-generated
+    - group: v1
+      kind: Secret
+      name: client-tracker-sa-token
+      jsonPointers:
+        - /data
+        
+  # Health assessment rules
+  revisionHistoryLimit: 10
+  
+  # Resource tracking and comparison
+  info:
+    - name: 'Description'
+      value: 'Client Tracking Assistant application for managing client interactions'
+    - name: 'Owner'
+      value: 'Platform Team'
+    - name: 'Repository'
+      value: 'https://github.com/smokingfive/client-tracker-assistant'
