@@ -15,11 +15,13 @@ model = OllamaLLM(model="llama3.2")
 
 # Define the structured prompt template
 template = """
-You are an expert assistant helping manage validator and client onboarding workflows.
+You are a helpful assistant that can answer questions about data from spreadsheets and CSV files.
 
-Here are some relevant client records: {records}
+Here are some relevant records from the data: {records}
 
-Based on the information above, provide an informed response to the following question: {question}
+Based on the information above, provide an informed and helpful response to the following question: {question}
+
+If the question cannot be answered from the provided data, say so clearly.
 """
 prompt = ChatPromptTemplate.from_template(template)
 chain = prompt | model
@@ -48,16 +50,18 @@ def main() -> None:
     
     if not data_source:
         # Interactive prompt
-        print(f"\n{Fore.GREEN}Welcome to Client Tracker Q&A Assistant!{Style.RESET_ALL}")
-        print(f"\n{Fore.YELLOW}Data Source Options:{Style.RESET_ALL}")
-        print("1. Local CSV file (e.g., 'client_tracking.csv')")
+        print(f"\n{Fore.GREEN}Welcome to Spreadsheet Q&A Assistant!{Style.RESET_ALL}")
+        print(f"\n{Fore.YELLOW}This tool can answer questions about ANY spreadsheet or CSV file.{Style.RESET_ALL}")
+        print(f"\n{Fore.CYAN}Data Source Options:{Style.RESET_ALL}")
+        print("1. Local CSV file (e.g., 'data.csv' or '/path/to/file.csv')")
         print("2. Google Sheets URL (e.g., 'https://docs.google.com/spreadsheets/d/...')")
         print("3. Just the Google Sheet ID")
         
-        data_source = input(f"\n{Fore.CYAN}Enter data source (or press Enter for 'client_tracking.csv'): {Style.RESET_ALL}").strip()
+        data_source = input(f"\n{Fore.CYAN}Enter your data source: {Style.RESET_ALL}").strip()
         
         if not data_source:
-            data_source = "client_tracking.csv"
+            print(f"{Fore.RED}No data source provided. Exiting.{Style.RESET_ALL}")
+            sys.exit(1)
     
     print(f"\n{Fore.GREEN}Loading data from: {data_source}{Style.RESET_ALL}")
     
@@ -71,7 +75,7 @@ def main() -> None:
     while True:
         print("\n\n-------------------------------")
         question: str = input(
-            f"{Fore.CYAN}Ask your question about a validator/client (q to quit): {Style.RESET_ALL}"
+            f"{Fore.CYAN}Ask a question about your data (or 'q' to quit): {Style.RESET_ALL}"
         )
         print("\n\n")
         if question.lower() == "q":
