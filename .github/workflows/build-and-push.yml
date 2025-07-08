@@ -41,7 +41,7 @@ jobs:
           type=ref,event=pr
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
-          type=sha,prefix={{branch}}-
+          type=sha,prefix=sha-
           type=raw,value=latest,enable={{is_default_branch}}
           
     - name: Set up Docker Buildx
@@ -61,7 +61,7 @@ jobs:
     - name: Generate SBOM
       uses: anchore/sbom-action@v0
       with:
-        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+        image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
         format: spdx-json
         output-file: sbom.spdx.json
 
