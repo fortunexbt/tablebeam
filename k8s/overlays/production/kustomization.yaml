@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: client-tracker
+
+bases:
+  - ../../base
+
+patchesStrategicMerge:
+  - deployment-patch.yaml
+
+configMapGenerator:
+  - name: client-tracker-config
+    behavior: merge
+    literals:
+      - LOG_LEVEL=INFO
+      - ENVIRONMENT=production
+
+secretGenerator:
+  - name: client-tracker-secrets
+    behavior: replace
+    envs:
+      - secrets.env
+
+replicas:
+  - name: client-tracker-api
+    count: 3
+
+images:
+  - name: ghcr.io/your-org/client-tracker-assistant
+    newTag: latest

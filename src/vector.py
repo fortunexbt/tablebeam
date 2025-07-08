@@ -3,9 +3,14 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 import pandas as pd
 import os
-from typing import List
+from typing import List, Optional
 from langchain_core.vectorstores import VectorStoreRetriever
 from colorama import Fore, Style
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def load_client_data(filepath: str) -> pd.DataFrame:
@@ -80,10 +85,41 @@ def setup_vector_store(
     return vector_store.as_retriever(search_kwargs={"k": k})
 
 
-def get_retriever(csv_path: str = "client_tracking.csv") -> VectorStoreRetriever:
+def get_retriever(csv_path: str = "client_tracking.csv", 
+                  vector_store_type: Optional[str] = None,
+                  namespace: Optional[str] = None) -> VectorStoreRetriever:
     """
     Returns a vector store retriever using client data from the given CSV.
+    
+    Args:
+        csv_path: Path to the client tracking CSV file
+        vector_store_type: Type of vector store to use ('chroma' or 'pinecone').
+                          If None, uses VECTOR_STORE_TYPE env var or defaults to 'chroma'
+        namespace: Optional namespace for Pinecone (ignored for ChromaDB)
+        
+    Returns:
+        VectorStoreRetriever instance
     """
+    # Determine vector store type
+    if vector_store_type is None:
+        vector_store_type = os.environ.get("VECTOR_STORE_TYPE", "chroma").lower()
+    
+    # Load data
     df = load_client_data(csv_path)
     docs = create_documents(df)
-    return setup_vector_store(docs)
+    
+    # Create appropriate retriever
+    if vector_store_type == "pinecone":
+        logger.info("Using Pinecone vector store")
+        try:
+            from .pinecone_vector import setup_pinecone_store
+            return setup_pinecone_store(docs, namespace=namespace)
+        except ImportError:
+            logger.error("Pinecone dependencies not installed. Please install pinecone-client.")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to initialize Pinecone: {e}")
+            raise
+    else:
+        logger.info("Using ChromaDB vector store")
+        return setup_vector_store(docs)
