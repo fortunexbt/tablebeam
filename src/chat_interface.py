@@ -4,6 +4,8 @@ from langchain_core.documents import Document
 from vector import get_retriever
 from colorama import Fore, Style, init
 from typing import List
+import sys
+import os
 
 # Initialize colorama for colored terminal prompts
 init(autoreset=True)
@@ -37,7 +39,34 @@ def main() -> None:
     """
     Entry point: launches terminal chat interface for Q&A over client records.
     """
-    retriever = get_retriever()
+    # Check if a data source was provided as command line argument
+    data_source = sys.argv[1] if len(sys.argv) > 1 else None
+    
+    if not data_source:
+        # Check for environment variable
+        data_source = os.environ.get('CLIENT_DATA_SOURCE')
+    
+    if not data_source:
+        # Interactive prompt
+        print(f"\n{Fore.GREEN}Welcome to Client Tracker Q&A Assistant!{Style.RESET_ALL}")
+        print(f"\n{Fore.YELLOW}Data Source Options:{Style.RESET_ALL}")
+        print("1. Local CSV file (e.g., 'client_tracking.csv')")
+        print("2. Google Sheets URL (e.g., 'https://docs.google.com/spreadsheets/d/...')")
+        print("3. Just the Google Sheet ID")
+        
+        data_source = input(f"\n{Fore.CYAN}Enter data source (or press Enter for 'client_tracking.csv'): {Style.RESET_ALL}").strip()
+        
+        if not data_source:
+            data_source = "client_tracking.csv"
+    
+    print(f"\n{Fore.GREEN}Loading data from: {data_source}{Style.RESET_ALL}")
+    
+    try:
+        retriever = get_retriever(data_source)
+        print(f"{Fore.GREEN}✓ Data loaded successfully!{Style.RESET_ALL}")
+    except Exception as e:
+        print(f"{Fore.RED}✗ Error loading data: {str(e)}{Style.RESET_ALL}")
+        sys.exit(1)
 
     while True:
         print("\n\n-------------------------------")
@@ -48,8 +77,11 @@ def main() -> None:
         if question.lower() == "q":
             break
 
-        answer: str = ask_question(question, retriever)
-        print(answer)
+        try:
+            answer: str = ask_question(question, retriever)
+            print(answer)
+        except Exception as e:
+            print(f"{Fore.RED}Error: {str(e)}{Style.RESET_ALL}")
 
 
 if __name__ == "__main__":

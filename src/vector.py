@@ -3,16 +3,30 @@ from langchain_chroma import Chroma
 from langchain_core.documents import Document
 import pandas as pd
 import os
-from typing import List
+from typing import List, Union
 from langchain_core.vectorstores import VectorStoreRetriever
 from colorama import Fore, Style
+from gsheet_loader import load_gsheet_as_csv, extract_sheet_id
 
 
-def load_client_data(filepath: str) -> pd.DataFrame:
+def load_client_data(source: str) -> pd.DataFrame:
     """
-    Loads the client tracking CSV data into a pandas DataFrame.
+    Loads the client tracking data from a CSV file or Google Sheet.
+    
+    Args:
+        source: Either a local CSV file path or a Google Sheets URL
+        
+    Returns:
+        pandas DataFrame with the client data
     """
-    return pd.read_csv(filepath)
+    # Check if it's a Google Sheets URL
+    if source.startswith('http') or extract_sheet_id(source):
+        print(f"{Fore.CYAN}Loading data from Google Sheet...{Style.RESET_ALL}")
+        return load_gsheet_as_csv(source)
+    else:
+        # Local CSV file
+        print(f"{Fore.CYAN}Loading data from local CSV: {source}{Style.RESET_ALL}")
+        return pd.read_csv(source)
 
 
 def create_documents(df: pd.DataFrame) -> List[Document]:
@@ -80,10 +94,16 @@ def setup_vector_store(
     return vector_store.as_retriever(search_kwargs={"k": k})
 
 
-def get_retriever(csv_path: str = "client_tracking.csv") -> VectorStoreRetriever:
+def get_retriever(data_source: str = "client_tracking.csv") -> VectorStoreRetriever:
     """
-    Returns a vector store retriever using client data from the given CSV.
+    Returns a vector store retriever using client data from the given source.
+    
+    Args:
+        data_source: Either a local CSV file path or a Google Sheets URL
+        
+    Returns:
+        VectorStoreRetriever configured with the client data
     """
-    df = load_client_data(csv_path)
+    df = load_client_data(data_source)
     docs = create_documents(df)
     return setup_vector_store(docs)
