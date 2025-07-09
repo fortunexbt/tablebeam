@@ -1,0 +1,143 @@
+# Production-specific values for client-tracker-assistant
+# This file can be used with ArgoCD's helm value files or kustomize patches
+
+# Application configuration
+app:
+  name: client-tracker-assistant
+  environment: production
+  
+# Image configuration
+image:
+  repository: ghcr.io/smokingfive/client-tracker-assistant
+  tag: "v1.0.0"  # Use specific version tags in production
+  pullPolicy: IfNotPresent
+  
+# Resource limits and requests
+resources:
+  api:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  ollama:
+    requests:
+      memory: "2Gi"
+      cpu: "1000m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+      
+# Replica configuration
+replicas:
+  api: 3
+  ollama: 2
+  
+# Health check configuration
+healthCheck:
+  api:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 3
+    path: /health
+    port: 8080
+    
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+  hosts:
+    - host: client-tracker.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: client-tracker-tls
+      hosts:
+        - client-tracker.example.com
+        
+# Persistence configuration
+persistence:
+  enabled: true
+  storageClass: "gp3"
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  
+# Security configuration
+security:
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+    capabilities:
+      drop:
+        - ALL
+        
+# Monitoring configuration
+monitoring:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    path: /metrics
+    
+# Autoscaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+  
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+  
+# Network policies
+networkPolicy:
+  enabled: true
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+        - podSelector:
+            matchLabels:
+              app: client-tracker-api
+              
+# Backup configuration
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # Daily at 2 AM
+  retention: 30  # Keep backups for 30 days
+  
+# Environment variables
+env:
+  LOG_LEVEL: "INFO"
+  ENVIRONMENT: "production"
+  OLLAMA_HOST: "http://ollama:11434"
+  VECTOR_DB_PATH: "/data/vector"
+  CLIENT_DATA_PATH: "/data/clients"
