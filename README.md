@@ -36,6 +36,20 @@ Upload any CSV or connect Google Sheets, then ask questions like:
 - "Summarize the key insights"
 - "Find all records from last month"
 
+### 🆕 New Features (v2.3)
+
+**Intelligent Model Selection**
+- 🧠 Automatic hardware detection (RAM, CPU, GPU)
+- 🍎 Apple Silicon optimization (M1/M2/M3 detection)
+- 📊 Smart model recommendations based on your system
+- ⬇️ Live download progress with real-time output
+
+**Enhanced UI/UX**
+- ⚙️ Model Settings panel with hardware details
+- ✅ Visual indicators for installed vs available models
+- 🗂️ Models organized by size categories
+- 🚀 One-click quick questions that work instantly
+
 ## 📸 Screenshots
 
 ### Beautiful Dark Theme UI
@@ -57,7 +71,12 @@ The start script checks and helps install everything:
 - **Python 3.9+** (guides you if missing)
 - **Ollama** (guides you if missing)
 - **10GB disk space** (for AI models)
-- **8GB RAM** (16GB recommended)
+- **4GB RAM minimum** (8GB+ recommended)
+
+### Recommended Models by RAM:
+- **4GB RAM**: all-minilm + phi3:mini (lightweight)
+- **8GB RAM**: nomic-embed-text + llama3.2:3b (balanced)
+- **16GB+ RAM**: mxbai-embed-large + mistral:7b (best quality)
 
 ## 🆘 Troubleshooting
 
