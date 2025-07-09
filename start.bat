@@ -51,23 +51,14 @@ REM Activate virtual environment
 echo [%time%] Activating virtual environment...
 call venv\Scripts\activate.bat
 
-REM Install/Update pip
-echo [%time%] Updating pip...
-python -m pip install --upgrade pip >nul 2>&1
-
-REM Install requirements
-echo [%time%] Installing Python packages (this may take a minute)...
-pip install -r src\requirements.txt --quiet
-echo ✅ All packages installed
-
-REM Check Ollama
-echo [%time%] Checking Ollama...
+REM Check Ollama FIRST (before slow Python installs)
+echo [%time%] Checking for Ollama (required for AI features)...
 where ollama >nul 2>&1
 if %errorlevel% neq 0 (
     echo.
     echo ERROR: Ollama is not installed!
     echo.
-    echo Please install Ollama:
+    echo Ollama is required for AI features. Please install it first:
     echo 1. Download from: https://ollama.com/download/windows
     echo 2. Run the installer
     echo 3. Press Enter to continue...
@@ -80,6 +71,44 @@ if %errorlevel% neq 0 (
         exit /b 1
     )
 )
+echo ✅ Ollama found
+
+REM Install/Update pip
+echo [%time%] Updating pip...
+python -m pip install --upgrade pip >nul 2>&1
+
+REM Count packages to install
+for /f %%i in ('findstr /r /v "^#" src\requirements.txt ^| find /c /v ""') do set TOTAL_PACKAGES=%%i
+echo [%time%] Installing %TOTAL_PACKAGES% Python packages...
+echo ℹ️  This typically takes 5-15 minutes on first install
+echo ℹ️  Progress will be shown below:
+echo.
+
+REM Install requirements with progress
+echo Starting package installation...
+echo (If this hangs for more than 2 minutes, press Ctrl+C and try again)
+echo.
+pip install -r src\requirements.txt --no-cache-dir
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: Package installation failed! Trying minimal requirements...
+    echo.
+    pip install -r src\requirements-minimal.txt
+    if %errorlevel% neq 0 (
+        echo.
+        echo ERROR: Minimal installation also failed!
+        echo Common fixes:
+        echo 1. Delete venv\ folder and try again
+        echo 2. Check your internet connection
+        pause
+        exit /b 1
+    )
+    echo Installed minimal requirements successfully
+)
+
+echo ✅ All packages installed
+
+REM Ollama already checked above, just verify it's running
 
 REM Start Ollama if not running
 curl -s http://localhost:11434/api/tags >nul 2>&1
@@ -96,14 +125,16 @@ set MODELS_NEEDED=false
 
 ollama list | findstr "llama3.2" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Downloading language model (one-time download)...
+    echo Language model not found. Downloading (~2GB, takes 3-10 minutes)...
+    echo Progress:
     ollama pull llama3.2
     set MODELS_NEEDED=true
 )
 
 ollama list | findstr "mxbai-embed-large" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Downloading embedding model (one-time download)...
+    echo Embedding model not found. Downloading (~400MB, takes 1-3 minutes)...
+    echo Progress:
     ollama pull mxbai-embed-large
     set MODELS_NEEDED=true
 )
