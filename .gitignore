@@ -1,29 +1,81 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
-
-# Virtual environment
-.venv/
+*.class
+*.so
+.Python
 env/
 venv/
 ENV/
-env.bak/
-venv.bak/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
 
-# pipenv
-Pipfile.lock
+# Vector stores
+chroma_db_clients/
+**/chroma_db_*/
+pinecone_cache/
+*.faiss
+*.pkl
 
-# Jupyter Notebooks
-.ipynb_checkpoints
+# Environment variables
+.env
+.env.*
+!.env.example
 
-# VSCode settings
+# Logs
+*.log
+logs/
+*.log.*
+
+# IDE
 .vscode/
-
-# PyCharm settings
 .idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project specific
+CLAUDE.md
+claude_api_key.txt
+api_keys/
+credentials/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Model files
+models/
+*.gguf
+*.bin
+
+# Data files (if sensitive)
+# Uncomment if CSV files contain sensitive data
+# *.csv
+# data/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
 
 # Distribution / packaging
+.Python
 build/
 develop-eggs/
 dist/
@@ -35,60 +87,7 @@ lib64/
 parts/
 sdist/
 var/
+wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-coverage.xml
-*.cover
-.hypothesis/
-.pytest_cache/
-nosetests.xml
-test-output/
-
-# MyPy and other Python tooling
-.mypy_cache/
-.dmypy.json
-.pyre/
-
-# Log files
-*.log
-
-# SQLite and other DB files
-*.sqlite3
-
-# Chrome vector database (ChromaDB persistence directory)
-chroma_db_clients/
-
-# Environment files
-.env
-.env.local
-.env.production
-*.env
-
-# Kubernetes secrets
-k8s/overlays/*/secrets.env
-k8s/overlays/*/secrets.yaml
-
-# Docker
-.dockerignore
-
-# Temporary files
-*.tmp
-*.temp
-*.swp
-*.swo
-*~
-
-# System files
-.DS_Store
-Thumbs.db
-
-# CSV data files (optional - uncomment if you don't want to track data files)
-# *.csv
-# !src/client_tracking.csv  # Exception for sample data
