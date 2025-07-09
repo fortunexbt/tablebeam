@@ -92,15 +92,20 @@ if ! command_exists ollama; then
     print_info "Ollama is required for AI features. Please install it first:"
     
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        print_info "For macOS: Download from https://ollama.com/download/mac"
+        print_info "For macOS, Ollama needs to be downloaded manually"
+        print_info "Download from: https://ollama.com/download/mac"
+        echo
+        read -p "Press Enter after installing Ollama to continue..."
     elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        print_info "For Linux: Run: curl -fsSL https://ollama.com/install.sh | sh"
+        print_info "Installing Ollama automatically..."
+        curl -fsSL https://ollama.com/install.sh | sh
+        echo
+        print_info "Ollama installation attempted. Checking..."
     else
         print_info "Download from: https://ollama.com/download"
+        echo
+        read -p "Press Enter after installing Ollama to continue..."
     fi
-    
-    echo
-    read -p "Press Enter after installing Ollama to continue..."
     
     if ! command_exists ollama; then
         print_error "Ollama still not found. Please install it and run this script again."

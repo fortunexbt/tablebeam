@@ -58,11 +58,22 @@ if %errorlevel% neq 0 (
     echo.
     echo ERROR: Ollama is not installed!
     echo.
-    echo Ollama is required for AI features. Please install it first:
-    echo 1. Download from: https://ollama.com/download/windows
-    echo 2. Run the installer
-    echo 3. Press Enter to continue...
-    pause >nul
+    echo Ollama is required for AI features. Attempting automatic installation...
+    echo.
+    
+    REM Try winget first (Windows 10/11)
+    where winget >nul 2>&1
+    if %errorlevel% equ 0 (
+        echo Installing Ollama via winget...
+        winget install Ollama.Ollama
+        echo.
+    ) else (
+        echo Please install Ollama manually:
+        echo 1. Download from: https://ollama.com/download/windows
+        echo 2. Run the installer
+        echo 3. Press Enter to continue...
+        pause >nul
+    )
     
     where ollama >nul 2>&1
     if %errorlevel% neq 0 (
