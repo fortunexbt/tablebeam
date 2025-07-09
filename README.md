@@ -93,6 +93,30 @@ python chat_interface.py
 # Then enter the URL when asked
 ```
 
+### Clearing Previous Data
+
+When switching between different data sources, you can clear the previous vector store:
+
+1. **Using command line flags:**
+```bash
+# Clear all existing data before loading
+python chat_interface.py --clear
+
+# Force refresh with new data (keeps old data but adds new)
+python chat_interface.py --force-refresh
+
+# Both work with data source arguments
+python chat_interface.py "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit" --clear
+```
+
+2. **Interactively when prompted:**
+   - When running without arguments, you'll be asked if you want to clear existing data
+
+3. **Manually delete the vector store:**
+```bash
+rm -rf ./chroma_db_clients/
+```
+
 **Important**: Your Google Sheet must be publicly accessible (view-only is fine):
 - In Google Sheets: Share → Change to "Anyone with the link can view"
 
@@ -153,6 +177,8 @@ colorama
 * Vector data is stored in `./chroma_db_clients/`. Delete to rebuild from scratch.
 * "Client" field is highlighted in yellow in terminal output.
 * Embeddings exclude terminal color codes for accuracy.
+* Use `--clear` flag to start fresh when switching between different Google Sheets.
+* Use `--force-refresh` to update the vector store with new data while keeping existing embeddings.
 
 ---
 

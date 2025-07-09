@@ -1,11 +1,12 @@
 from langchain_ollama.llms import OllamaLLM
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.documents import Document
-from vector import get_retriever
+from vector import get_retriever, clear_vector_store
 from colorama import Fore, Style, init
 from typing import List
 import sys
 import os
+import argparse
 
 # Initialize colorama for colored terminal prompts
 init(autoreset=True)
@@ -15,11 +16,13 @@ model = OllamaLLM(model="llama3.2")
 
 # Define the structured prompt template
 template = """
-You are an expert assistant helping manage validator and client onboarding workflows.
+You are an intelligent assistant that helps users analyze and understand data from their CSV files or Google Sheets.
 
-Here are some relevant client records: {records}
+Here are relevant records from the dataset: {records}
 
-Based on the information above, provide an informed response to the following question: {question}
+Based on the information above, provide a helpful and accurate response to the following question: {question}
+
+Note: The data structure and field names may vary depending on the uploaded file. Be adaptive in your responses.
 """
 prompt = ChatPromptTemplate.from_template(template)
 chain = prompt | model
@@ -39,8 +42,19 @@ def main() -> None:
     """
     Entry point: launches terminal chat interface for Q&A over client records.
     """
-    # Check if a data source was provided as command line argument
-    data_source = sys.argv[1] if len(sys.argv) > 1 else None
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description='Client Tracker Q&A Assistant')
+    parser.add_argument('data_source', nargs='?', help='Data source (CSV file or Google Sheets URL)')
+    parser.add_argument('--clear', action='store_true', help='Clear existing vector store before loading new data')
+    parser.add_argument('--force-refresh', action='store_true', help='Force refresh the vector store with new data')
+    
+    args = parser.parse_args()
+    
+    # Clear vector store if requested
+    if args.clear:
+        clear_vector_store()
+    
+    data_source = args.data_source
     
     if not data_source:
         # Check for environment variable
@@ -48,7 +62,7 @@ def main() -> None:
     
     if not data_source:
         # Interactive prompt
-        print(f"\n{Fore.GREEN}Welcome to Client Tracker Q&A Assistant!{Style.RESET_ALL}")
+        print(f"\n{Fore.GREEN}Welcome to Data Q&A Assistant!{Style.RESET_ALL}")
         print(f"\n{Fore.YELLOW}Data Source Options:{Style.RESET_ALL}")
         print("1. Local CSV file (e.g., 'client_tracking.csv')")
         print("2. Google Sheets URL (e.g., 'https://docs.google.com/spreadsheets/d/...')")
@@ -58,11 +72,17 @@ def main() -> None:
         
         if not data_source:
             data_source = "client_tracking.csv"
+        
+        # Ask if user wants to clear existing data
+        clear_choice = input(f"\n{Fore.YELLOW}Clear existing data before loading? (y/N): {Style.RESET_ALL}").strip().lower()
+        if clear_choice == 'y':
+            clear_vector_store()
+            args.force_refresh = True
     
     print(f"\n{Fore.GREEN}Loading data from: {data_source}{Style.RESET_ALL}")
     
     try:
-        retriever = get_retriever(data_source)
+        retriever = get_retriever(data_source, force_refresh=args.force_refresh)
         print(f"{Fore.GREEN}✓ Data loaded successfully!{Style.RESET_ALL}")
     except Exception as e:
         print(f"{Fore.RED}✗ Error loading data: {str(e)}{Style.RESET_ALL}")
@@ -71,7 +91,7 @@ def main() -> None:
     while True:
         print("\n\n-------------------------------")
         question: str = input(
-            f"{Fore.CYAN}Ask your question about a validator/client (q to quit): {Style.RESET_ALL}"
+            f"{Fore.CYAN}Ask a question about your data (q to quit): {Style.RESET_ALL}"
         )
         print("\n\n")
         if question.lower() == "q":
