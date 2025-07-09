@@ -168,20 +168,3 @@ This is an actively maintained project that combines:
 - Support for both CSV files and Google Sheets
 
 Check [TODO.md](TODO.md) for planned features and ways to contribute.
-
-## Contributing
-
-Contributions welcome! Feel free to:
-- Pick an item from [TODO.md](TODO.md)
-- Open issues for bugs or features
-- Submit pull requests
-- Improve documentation
-- Share your use cases
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file
-
----
-
-Built with ❤️ by [@raj panesar](https://github.com/rajpanesar)
