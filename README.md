@@ -9,14 +9,14 @@ Ask questions about your spreadsheet data in plain English. Get instant AI-power
 
 ### macOS/Linux:
 ```bash
-git clone https://github.com/yourusername/client-tracker-assistant.git
+git clone https://github.com/smokingfive/client-tracker-assistant.git
 cd client-tracker-assistant
 ./start.sh
 ```
 
 ### Windows:
 ```cmd
-git clone https://github.com/yourusername/client-tracker-assistant.git
+git clone https://github.com/smokingfive/client-tracker-assistant.git
 cd client-tracker-assistant
 start.bat
 ```
