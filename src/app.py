@@ -1,11 +1,10 @@
 import streamlit as st
 import pandas as pd
 import tempfile
-import os
 from pathlib import Path
 import sys
 
-# Add parent directory to path to import local modules
+# Add parent directory to path
 sys.path.append(str(Path(__file__).parent))
 
 from vector import get_retriever, load_client_data, create_documents
@@ -14,117 +13,97 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_ollama import ChatOllama
 
-# Set page config
+# Page config
 st.set_page_config(
-    page_title="Spreadsheet Q&A Assistant",
+    page_title="Spreadsheet Q&A",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for professional appearance
+# Clean, modern CSS
 st.markdown("""
 <style>
-    /* Main container styling */
+    /* Hide Streamlit defaults */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    .stDeployButton {display: none;}
+    
+    /* Dark theme */
     .stApp {
-        background-color: #0e1117;
+        background-color: #0a0a0a;
     }
     
-    /* Sidebar styling */
+    /* Sidebar */
     section[data-testid="stSidebar"] {
-        background-color: #1a1f2e;
-        border-right: 1px solid #2d3548;
+        background-color: #111111;
+        width: 300px;
     }
     
-    /* Chat message styling */
-    .stChatMessage {
-        background-color: #1a1f2e;
-        border: 1px solid #2d3548;
-        border-radius: 10px;
-        margin-bottom: 10px;
+    section[data-testid="stSidebar"] > div {
+        padding-top: 2rem;
     }
     
-    /* Button styling */
+    /* Headers */
+    h1, h2, h3 {
+        font-weight: 600;
+    }
+    
+    /* Buttons */
     .stButton > button {
-        background-color: #4a5568;
+        background-color: #3b82f6;
+        color: white;
         border: none;
-        border-radius: 8px;
-        transition: all 0.3s;
+        padding: 0.5rem 1rem;
+        font-weight: 500;
+        transition: all 0.2s;
+        width: 100%;
     }
     
     .stButton > button:hover {
-        background-color: #5a6578;
-        transform: translateY(-2px);
+        background-color: #2563eb;
     }
     
-    /* Primary button */
-    .stButton > button[kind="primary"] {
-        background-color: #3182ce;
+    /* Chat */
+    .stChatMessage {
+        background-color: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0.5rem;
     }
     
-    .stButton > button[kind="primary"]:hover {
-        background-color: #4192de;
-    }
-    
-    /* Radio button styling */
-    .stRadio > div {
-        background-color: #1a1f2e;
-        padding: 10px;
-        border-radius: 8px;
-    }
-    
-    /* Success/Error message styling */
-    .stSuccess, .stError, .stWarning, .stInfo {
-        border-radius: 8px;
-        padding: 10px;
-    }
-    
-    /* Header styling */
-    h1, h2, h3 {
-        color: #e2e8f0;
-    }
-    
-    /* Mode selector card */
-    .mode-card {
-        background-color: #1a1f2e;
-        padding: 20px;
-        border-radius: 10px;
-        border: 1px solid #2d3548;
-        margin-bottom: 20px;
-        text-align: center;
-    }
-    
-    /* Feature cards */
-    .feature-card {
-        background-color: #1a1f2e;
-        padding: 20px;
-        border-radius: 10px;
-        border: 1px solid #2d3548;
-        height: 100%;
-        transition: transform 0.3s;
-    }
-    
-    .feature-card:hover {
-        transform: translateY(-5px);
-        border-color: #3182ce;
-    }
-    
-    /* Chat input styling */
-    .stChatInputContainer {
-        border-top: 1px solid #2d3548;
-        padding-top: 20px;
+    div[data-testid="stChatInput"] {
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 1rem;
     }
     
     /* File uploader */
-    .stFileUploader {
-        background-color: #1a1f2e;
-        border: 2px dashed #2d3548;
-        border-radius: 10px;
-        padding: 20px;
+    [data-testid="stFileUploadDropzone"] {
+        background-color: rgba(255, 255, 255, 0.02);
+        border: 2px dashed rgba(255, 255, 255, 0.1);
+        border-radius: 0.5rem;
     }
     
-    .stFileUploader:hover {
-        border-color: #3182ce;
+    [data-testid="stFileUploadDropzone"]:hover {
+        border-color: #3b82f6;
+        background-color: rgba(59, 130, 246, 0.05);
+    }
+    
+    /* Radio buttons */
+    .stRadio > div {
+        display: flex;
+        gap: 1rem;
+    }
+    
+    /* Success/Error messages */
+    .stSuccess, .stError, .stInfo {
+        padding: 0.75rem 1rem;
+        border-radius: 0.375rem;
+        margin: 0.5rem 0;
+    }
+    
+    /* Hide deployment mode if not needed */
+    div[data-testid="stRadio"] {
+        margin-bottom: 1rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -132,350 +111,194 @@ st.markdown("""
 # Initialize session state
 if 'messages' not in st.session_state:
     st.session_state.messages = []
-if 'retriever' not in st.session_state:
-    st.session_state.retriever = None
 if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False
-if 'current_data_source' not in st.session_state:
-    st.session_state.current_data_source = None
-if 'deployment_mode' not in st.session_state:
-    st.session_state.deployment_mode = "LOCAL"
-if 'pending_question' not in st.session_state:
-    st.session_state.pending_question = None
+if 'retriever' not in st.session_state:
+    st.session_state.retriever = None
+if 'current_source' not in st.session_state:
+    st.session_state.current_source = None
 
-# Header with better styling
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.markdown("""
-    <div style='text-align: center; padding: 20px;'>
-        <h1 style='color: #3182ce; margin-bottom: 10px;'>📊 Spreadsheet Q&A Assistant</h1>
-        <p style='color: #a0aec0; font-size: 18px;'>Ask questions about your data in natural language</p>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Deployment Mode Selector
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    deployment_mode = st.radio(
-        "🌐 Deployment Mode",
-        ["LOCAL", "CLOUD"],
-        index=0,
-        horizontal=True,
-        help="Cloud mode coming soon! Currently only local mode is available."
-    )
-    st.session_state.deployment_mode = deployment_mode
-
-# Show elegant warning if cloud mode is selected
-if deployment_mode == "CLOUD":
-    st.markdown("""
-    <div style='background-color: #1a1f2e; padding: 30px; border-radius: 10px; border: 1px solid #3182ce; margin: 20px 0;'>
-        <h3 style='color: #3182ce; margin-bottom: 15px;'>☁️ Cloud Mode - Coming Soon!</h3>
-        <p style='color: #a0aec0; margin-bottom: 20px;'>We're working hard to bring you cloud capabilities. Stay tuned!</p>
-        <div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;'>
-            <div style='background-color: #0e1117; padding: 15px; border-radius: 8px;'>
-                <strong style='color: #4a90e2;'>⚡ GPU Acceleration</strong>
-                <p style='color: #718096; margin-top: 5px;'>10x faster processing</p>
-            </div>
-            <div style='background-color: #0e1117; padding: 15px; border-radius: 8px;'>
-                <strong style='color: #4a90e2;'>👥 Team Collaboration</strong>
-                <p style='color: #718096; margin-top: 5px;'>Share insights instantly</p>
-            </div>
-            <div style='background-color: #0e1117; padding: 15px; border-radius: 8px;'>
-                <strong style='color: #4a90e2;'>💾 Persistent Storage</strong>
-                <p style='color: #718096; margin-top: 5px;'>Your data, always available</p>
-            </div>
-            <div style='background-color: #0e1117; padding: 15px; border-radius: 8px;'>
-                <strong style='color: #4a90e2;'>🔌 API Access</strong>
-                <p style='color: #718096; margin-top: 5px;'>Integrate anywhere</p>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    st.stop()
-
-# Sidebar with better organization
+# Sidebar
 with st.sidebar:
-    # Mode indicator
-    if deployment_mode == "LOCAL":
-        st.markdown("""
-        <div style='background-color: #48bb78; color: white; padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 20px;'>
-            <strong>🏠 LOCAL MODE ACTIVE</strong>
-        </div>
-        """, unsafe_allow_html=True)
+    st.markdown("## 📊 Spreadsheet Q&A")
+    st.markdown("---")
     
-    # AI Engine Status with better styling
-    st.markdown("### 🤖 AI Engine Status")
-    try:
-        import requests
-        response = requests.get("http://localhost:11434/api/tags", timeout=2)
-        if response.status_code == 200:
-            st.success("✅ Ollama is running")
-            # Show available models
-            try:
-                models = response.json().get('models', [])
-                if models:
-                    with st.expander("Available Models", expanded=False):
-                        for model in models:
-                            st.text(f"• {model.get('name', 'Unknown')}")
-            except:
-                pass
-        else:
-            st.error("❌ Ollama is not responding")
-    except:
-        st.error("❌ Ollama is not running")
-        st.markdown("""
-        <div style='background-color: #1a1f2e; padding: 10px; border-radius: 8px; margin-top: 10px;'>
-            <code>ollama serve</code>
-        </div>
-        """, unsafe_allow_html=True)
+    # System status
+    status_container = st.container()
+    with status_container:
+        try:
+            import requests
+            response = requests.get("http://localhost:11434/api/tags", timeout=1)
+            if response.status_code == 200:
+                st.success("✅ AI Engine Ready")
+            else:
+                st.error("❌ AI Engine Offline")
+        except:
+            st.error("❌ AI Engine Offline")
+            st.caption("Run `ollama serve` to start")
     
     st.markdown("---")
     
-    # Data Source Section
-    st.markdown("### 📁 Data Source")
+    # Data source
+    st.markdown("### 📁 Load Your Data")
     
-    data_source = st.radio(
-        "Choose your data:",
-        ["📤 Upload CSV File", "🔗 Google Sheets URL"],
-        index=0,
+    upload_method = st.radio(
+        "Choose input method:",
+        ["Upload CSV", "Google Sheets URL"],
         label_visibility="collapsed"
     )
     
     data_path = None
     
-    if data_source == "📤 Upload CSV File":
+    if upload_method == "Upload CSV":
         uploaded_file = st.file_uploader(
-            "Drop your CSV here",
+            "Drop your CSV file here",
             type=['csv'],
-            help="Supports any CSV format"
+            label_visibility="collapsed"
         )
         
-        if uploaded_file is not None:
-            # Save uploaded file temporarily
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.csv') as tmp_file:
-                tmp_file.write(uploaded_file.getvalue())
-                data_path = tmp_file.name
-                st.session_state.current_data_source = uploaded_file.name
-            
-            # Show file info
-            file_size = len(uploaded_file.getvalue()) / 1024
-            st.info(f"📄 {uploaded_file.name} ({file_size:.1f} KB)")
+        if uploaded_file:
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.csv') as tmp:
+                tmp.write(uploaded_file.getvalue())
+                data_path = tmp.name
+                st.session_state.current_source = uploaded_file.name
     
-    elif data_source == "🔗 Google Sheets URL":
+    else:  # Google Sheets
         sheet_url = st.text_input(
-            "Google Sheets URL",
+            "Paste Google Sheets URL",
             placeholder="https://docs.google.com/spreadsheets/d/...",
-            help="Sheet must be publicly viewable"
+            label_visibility="collapsed"
         )
-        
         if sheet_url:
             data_path = sheet_url
-            st.session_state.current_data_source = "Google Sheets"
-            st.info("🔗 Google Sheets connected")
+            st.session_state.current_source = "Google Sheets"
     
-    # Load data button with better styling
-    if data_path:
-        if st.button("🚀 Load Data", type="primary", use_container_width=True):
-            with st.spinner("Processing your data..."):
+    # Load button
+    if data_path and not st.session_state.data_loaded:
+        if st.button("🚀 Load Data", type="primary"):
+            with st.spinner("Processing..."):
                 try:
-                    # Load the data
                     df = load_client_data(data_path)
-                    
-                    # Create documents and retriever
                     documents = create_documents(df)
-                    retriever = get_retriever(data_path)
-                    
-                    # Store in session state
-                    st.session_state.retriever = retriever
+                    st.session_state.retriever = get_retriever(data_path)
                     st.session_state.data_loaded = True
-                    st.session_state.messages = []  # Clear previous messages
-                    
-                    st.success(f"✅ Loaded {len(df)} rows, {len(df.columns)} columns")
-                    
-                    # Show data preview with better formatting
-                    with st.expander("📊 Data Preview", expanded=True):
-                        st.dataframe(
-                            df.head(10),
-                            use_container_width=True,
-                            hide_index=True
-                        )
-                    
+                    st.session_state.messages = []
+                    st.success(f"Loaded {len(df)} rows")
                 except Exception as e:
-                    st.error(f"❌ Error: {str(e)}")
+                    st.error(f"Error: {str(e)}")
     
-    # Sample questions with better organization
+    # Quick actions
     if st.session_state.data_loaded:
         st.markdown("---")
         st.markdown("### 💡 Quick Questions")
-        st.markdown("Try these to get started:")
         
-        sample_questions = [
-            "What are the main patterns in this data?",
-            "Summarize the key insights",
-            "Show me statistical summary",
-            "What are the unique values?",
-            "Find correlations in the data"
+        questions = [
+            "What are the main patterns?",
+            "Summarize key insights",
+            "Show statistical summary",
+            "Find unique values",
+            "Identify correlations"
         ]
         
-        for i, question in enumerate(sample_questions):
-            if st.button(
-                question,
-                key=f"sample_{i}",
-                use_container_width=True,
-                help="Click to ask this question"
-            ):
-                st.session_state.messages.append({"role": "user", "content": question})
-                st.session_state.pending_question = question  # Mark question as pending
+        for q in questions:
+            if st.button(q, key=f"q_{q}"):
+                st.session_state.messages.append({"role": "user", "content": q})
                 st.rerun()
 
-# Main chat interface
-if st.session_state.data_loaded:
-    # Status indicator
-    st.markdown(f"""
-    <div style='background-color: #1a1f2e; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #48bb78;'>
-        <span style='color: #48bb78; font-size: 16px;'>● Connected to: {st.session_state.current_data_source}</span>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Chat messages container
-    chat_container = st.container()
-    with chat_container:
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
-    
-    # Process pending question from quick questions ONLY
-    if hasattr(st.session_state, 'pending_question') and st.session_state.pending_question:
-        prompt = st.session_state.pending_question
-        st.session_state.pending_question = None  # Clear pending question
-        
-        # Process the pending question
-        process_question = True
-    else:
-        # Chat input at the bottom
-        prompt = st.chat_input("Ask anything about your data...", key="chat_input")
-        process_question = bool(prompt)
-    
-    # Process the prompt
-    if process_question and prompt:
-        # Add user message
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        
-        # Display in the chat container
-        with chat_container:
-            with st.chat_message("user"):
-                st.write(prompt)
-        
-        # Generate response
-        with chat_container:
-            with st.chat_message("assistant"):
-                with st.spinner("Analyzing..."):
-                    try:
-                        # Set up the QA chain
-                        llm = ChatOllama(model="llama3.2", temperature=0.7)
-                        
-                        system_prompt = (
-                            "You are a helpful data analyst assistant. "
-                            "Use the retrieved context to answer questions accurately. "
-                            "If you don't know something, say so. "
-                            "Format your responses clearly with bullet points or tables when appropriate. "
-                            "Be concise but thorough."
-                            "\n\nContext:\n{context}"
-                        )
-                        
-                        prompt_template = ChatPromptTemplate.from_messages([
-                            ("system", system_prompt),
-                            ("human", "{input}"),
-                        ])
-                        
-                        question_answer_chain = create_stuff_documents_chain(llm, prompt_template)
-                        rag_chain = create_retrieval_chain(st.session_state.retriever, question_answer_chain)
-                        
-                        # Get response
-                        response = rag_chain.invoke({"input": prompt})
-                        answer = response["answer"]
-                        
-                        # Display response
-                        st.write(answer)
-                        
-                        # Show source documents in a cleaner way
-                        if "context" in response and response["context"]:
-                            with st.expander("📄 View Source Data", expanded=False):
-                                for i, doc in enumerate(response["context"][:3]):  # Limit to 3
-                                    st.markdown(f"**Source {i+1}:**")
-                                    st.code(doc.page_content, language="text")
-                        
-                        # Add assistant message to history
-                        st.session_state.messages.append({"role": "assistant", "content": answer})
-                        
-                    except Exception as e:
-                        st.error(f"Error: {str(e)}")
-                        with st.expander("💡 Troubleshooting"):
-                            st.markdown("""
-                            1. **Check Ollama**: Make sure it's running (`ollama serve`)
-                            2. **Check Models**: Ensure you have `llama3.2` and `mxbai-embed-large`
-                            3. **Memory**: Close other applications if running out of memory
-                            """)
-
-else:
-    # Welcome screen with better design
+# Main area
+if not st.session_state.data_loaded:
+    # Welcome screen
     st.markdown("""
-    <div style='text-align: center; padding: 40px;'>
-        <h2 style='color: #3182ce; margin-bottom: 30px;'>Welcome! Let's analyze your data together.</h2>
+    <div style='text-align: center; padding: 3rem 0;'>
+        <h1 style='font-size: 3rem; margin-bottom: 1rem;'>Welcome to Spreadsheet Q&A</h1>
+        <p style='font-size: 1.25rem; color: #888; margin-bottom: 3rem;'>
+            Ask questions about your data in plain English. Get instant AI-powered insights.
+        </p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Feature cards
     col1, col2, col3 = st.columns(3)
     
     with col1:
         st.markdown("""
-        <div class='feature-card'>
-            <h3 style='color: #48bb78;'>🏠 Local & Private</h3>
-            <p style='color: #a0aec0;'>Your data never leaves your computer. Complete privacy guaranteed.</p>
-        </div>
-        """, unsafe_allow_html=True)
+        ### 🔒 Private & Secure
+        Your data never leaves your computer. Everything runs locally.
+        """)
     
     with col2:
         st.markdown("""
-        <div class='feature-card'>
-            <h3 style='color: #4299e1;'>🤖 AI-Powered</h3>
-            <p style='color: #a0aec0;'>Advanced language models understand your questions naturally.</p>
-        </div>
-        """, unsafe_allow_html=True)
+        ### 🚀 Instant Analysis
+        Get answers in seconds. No SQL or coding required.
+        """)
     
     with col3:
         st.markdown("""
-        <div class='feature-card'>
-            <h3 style='color: #ed8936;'>⚡ Instant Insights</h3>
-            <p style='color: #a0aec0;'>Get answers in seconds, not hours. No SQL required.</p>
-        </div>
-        """, unsafe_allow_html=True)
+        ### 🤖 AI-Powered
+        Advanced language models understand your questions naturally.
+        """)
     
-    # Getting started guide
     st.markdown("""
-    <div style='background-color: #1a1f2e; padding: 30px; border-radius: 10px; margin-top: 40px;'>
-        <h3 style='text-align: center; color: #e2e8f0; margin-bottom: 20px;'>🚀 Getting Started</h3>
-        <div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center;'>
-            <div>
-                <div style='background-color: #3182ce; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;'>1</div>
-                <p style='color: #a0aec0;'>Upload your CSV or connect Google Sheets</p>
-            </div>
-            <div>
-                <div style='background-color: #3182ce; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;'>2</div>
-                <p style='color: #a0aec0;'>Click "Load Data" to process</p>
-            </div>
-            <div>
-                <div style='background-color: #3182ce; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;'>3</div>
-                <p style='color: #a0aec0;'>Start asking questions!</p>
-            </div>
-        </div>
+    <div style='text-align: center; margin-top: 3rem;'>
+        <p style='color: #888;'>← Upload your data from the sidebar to get started</p>
     </div>
     """, unsafe_allow_html=True)
 
-# Footer
-st.markdown("---")
-st.markdown(
-    "<center style='color: #718096;'>Built with Streamlit and LangChain | Powered by Ollama</center>",
-    unsafe_allow_html=True
-)
+else:
+    # Chat interface
+    st.markdown(f"""
+    <div style='display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;'>
+        <span style='background: #10b981; width: 8px; height: 8px; border-radius: 50%; display: inline-block;'></span>
+        <span style='color: #888;'>Connected to: {st.session_state.current_source}</span>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Display messages
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.write(message["content"])
+    
+    # Chat input
+    if prompt := st.chat_input("Ask anything about your data..."):
+        # Add user message
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        
+        with st.chat_message("user"):
+            st.write(prompt)
+        
+        # Generate response
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                try:
+                    llm = ChatOllama(model="llama3.2", temperature=0.7)
+                    
+                    system_prompt = """You are a helpful data analyst assistant. 
+                    Use the retrieved context to answer questions accurately. 
+                    If you don't know something, say so. 
+                    Format your responses clearly with bullet points or tables when appropriate.
+                    Be concise but thorough.
+                    
+                    Context: {context}"""
+                    
+                    prompt_template = ChatPromptTemplate.from_messages([
+                        ("system", system_prompt),
+                        ("human", "{input}"),
+                    ])
+                    
+                    qa_chain = create_stuff_documents_chain(llm, prompt_template)
+                    rag_chain = create_retrieval_chain(st.session_state.retriever, qa_chain)
+                    
+                    response = rag_chain.invoke({"input": prompt})
+                    answer = response["answer"]
+                    
+                    st.write(answer)
+                    st.session_state.messages.append({"role": "assistant", "content": answer})
+                    
+                    # Source documents (collapsed by default)
+                    if "context" in response and response["context"]:
+                        with st.expander("View sources"):
+                            for i, doc in enumerate(response["context"][:3]):
+                                st.text(f"Source {i+1}:\n{doc.page_content[:200]}...")
+                
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
+                    st.info("Make sure Ollama is running with `ollama serve`")
