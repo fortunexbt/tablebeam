@@ -92,19 +92,17 @@ REM Count packages to install
 for /f %%i in ('findstr /r /v "^#" src\requirements.txt ^| find /c /v ""') do set TOTAL_PACKAGES=%%i
 echo [%time%] Installing %TOTAL_PACKAGES% Python packages...
 echo ℹ️  This typically takes 5-15 minutes on first install
-echo ℹ️  Progress will be shown below:
 echo.
 
-REM Install requirements with progress
-echo Starting package installation...
-echo (If this hangs for more than 2 minutes, press Ctrl+C and try again)
+REM Install requirements with simplified output
+echo 📦 Installing packages... This will show minimal output to reduce clutter
 echo.
-pip install -r src\requirements.txt --no-cache-dir
+pip install -r src\requirements.txt --no-cache-dir -q --disable-pip-version-check
 if %errorlevel% neq 0 (
     echo.
     echo ERROR: Package installation failed! Trying minimal requirements...
     echo.
-    pip install -r src\requirements-minimal.txt
+    pip install -r src\requirements-minimal.txt -q --disable-pip-version-check
     if %errorlevel% neq 0 (
         echo.
         echo ERROR: Minimal installation also failed!
