@@ -65,6 +65,30 @@ test-output/
 # Chrome vector database (ChromaDB persistence directory)
 chroma_db_clients/
 
+# Environment files
+.env
+.env.local
+.env.production
+*.env
+
+# Kubernetes secrets
+k8s/overlays/*/secrets.env
+k8s/overlays/*/secrets.yaml
+
+# Docker
+.dockerignore
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
 # System files
 .DS_Store
 Thumbs.db
+
+# CSV data files (optional - uncomment if you don't want to track data files)
+# *.csv
+# !src/client_tracking.csv  # Exception for sample data
