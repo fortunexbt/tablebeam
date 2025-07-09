@@ -40,7 +40,7 @@ Upload any CSV or connect Google Sheets, then ask questions like:
 
 **Intelligent Model Selection**
 - 🧠 Automatic hardware detection (RAM, CPU, GPU)
-- 🍎 Apple Silicon optimization (M1/M2/M3 detection)
+- 🍎 Apple Silicon optimization (M-chip detection)
 - 📊 Smart model recommendations based on your system
 - ⬇️ Live download progress with real-time output
 
