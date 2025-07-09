@@ -4,10 +4,15 @@ from langchain_core.documents import Document
 import pandas as pd
 import os
 import shutil
-from typing import List, Union
+from typing import List, Union, Optional
 from langchain_core.vectorstores import VectorStoreRetriever
 from colorama import Fore, Style
 from gsheet_loader import load_gsheet_as_csv, extract_sheet_id
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def analyze_dataframe(df: pd.DataFrame) -> None:
@@ -172,18 +177,44 @@ def setup_vector_store(
     return vector_store.as_retriever(search_kwargs={"k": k})
 
 
-def get_retriever(data_source: str = "client_tracking.csv", force_refresh: bool = False) -> VectorStoreRetriever:
+def get_retriever(data_source: str = "client_tracking.csv", 
+                  force_refresh: bool = False,
+                  vector_store_type: Optional[str] = None,
+                  namespace: Optional[str] = None) -> VectorStoreRetriever:
     """
     Returns a vector store retriever using client data from the given source.
     
     Args:
         data_source: Either a local CSV file path or a Google Sheets URL
         force_refresh: If True, clears existing data and recreates the vector store
+        vector_store_type: Type of vector store to use ('chroma' or 'pinecone').
+                          If None, uses VECTOR_STORE_TYPE env var or defaults to 'chroma'
+        namespace: Optional namespace for Pinecone (ignored for ChromaDB)
         
     Returns:
         VectorStoreRetriever configured with the client data
     """
+    # Determine vector store type
+    if vector_store_type is None:
+        vector_store_type = os.environ.get("VECTOR_STORE_TYPE", "chroma").lower()
+    
+    # Load data
     df = load_client_data(data_source)
     analyze_dataframe(df)  # Show data structure
     docs = create_documents(df)
-    return setup_vector_store(docs, force_refresh=force_refresh)
+    
+    # Create appropriate retriever
+    if vector_store_type == "pinecone":
+        logger.info("Using Pinecone vector store")
+        try:
+            from .pinecone_vector import setup_pinecone_store
+            return setup_pinecone_store(docs, namespace=namespace)
+        except ImportError:
+            logger.error("Pinecone dependencies not installed. Please install pinecone-client.")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to initialize Pinecone: {e}")
+            raise
+    else:
+        logger.info("Using ChromaDB vector store")
+        return setup_vector_store(docs, force_refresh=force_refresh)
