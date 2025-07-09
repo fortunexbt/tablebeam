@@ -2,7 +2,6 @@
 
 Ask questions about your spreadsheet data in plain English. Get instant AI-powered answers. **100% private** - runs entirely on your computer.
 
-![Demo](https://img.shields.io/badge/Demo-Watch%20Video-red)
 ![Status](https://img.shields.io/badge/Status-Ready-green)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
@@ -107,7 +106,7 @@ Another app is using the port. Either:
 
 ## 🤝 Contributing
 
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+We welcome contributions! Feel free to open issues or submit pull requests.
 
 ## 📄 License
 
@@ -115,4 +114,4 @@ MIT License - use freely for any purpose.
 
 ---
 
-**Built with ❤️ by the community** | [Report Issues](https://github.com/yourusername/client-tracker-assistant/issues)
+**Built with ❤️ using Streamlit, LangChain, and Ollama**
