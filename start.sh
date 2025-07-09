@@ -84,21 +84,12 @@ else
     source venv/bin/activate
 fi
 
-# Install/Update pip
-print_status "Updating pip..."
-pip install --upgrade pip --quiet
-
-# Install requirements
-print_status "Installing Python packages (this may take a minute)..."
-pip install -r src/requirements.txt --quiet
-print_success "All packages installed"
-
-# Check Ollama
-print_status "Checking Ollama..."
+# Check Ollama FIRST (before slow Python installs)
+print_status "Checking for Ollama (required for AI features)..."
 if ! command_exists ollama; then
     print_error "Ollama is not installed!"
     echo
-    print_info "Please install Ollama:"
+    print_info "Ollama is required for AI features. Please install it first:"
     
     if [[ "$OSTYPE" == "darwin"* ]]; then
         print_info "For macOS: Download from https://ollama.com/download/mac"
@@ -116,6 +107,39 @@ if ! command_exists ollama; then
         exit 1
     fi
 fi
+print_success "Ollama found"
+
+# Install/Update pip
+print_status "Updating pip..."
+pip install --upgrade pip --quiet
+
+# Count packages to install
+TOTAL_PACKAGES=$(grep -c "^[^#]" src/requirements.txt | tr -d ' ')
+print_status "Installing $TOTAL_PACKAGES Python packages..."
+print_info "This typically takes 5-15 minutes on first install"
+print_info "Progress will be shown below:"
+echo
+
+# Install requirements with progress and timeout
+echo "Starting package installation..."
+echo "(If this hangs for more than 2 minutes, press Ctrl+C and try again)"
+echo
+pip install -r src/requirements.txt --no-cache-dir || {
+    print_error "Package installation failed! Trying minimal requirements..."
+    echo
+    pip install -r src/requirements-minimal.txt || {
+        print_error "Minimal installation also failed!"
+        print_info "Common fixes:"
+        print_info "1. Delete venv/ folder and try again"
+        print_info "2. Check your internet connection"
+        exit 1
+    }
+    print_info "Installed minimal requirements successfully"
+}
+
+print_success "All packages installed"
+
+# Ollama already checked above, just verify it's running
 
 # Start Ollama if not running
 if ! curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then
@@ -142,13 +166,15 @@ print_status "Checking AI models..."
 MODELS_NEEDED=false
 
 if ! ollama list | grep -q "llama3.2"; then
-    print_info "Language model not found. Downloading (this is a one-time download)..."
+    print_info "Language model not found. Downloading (~2GB, takes 3-10 minutes)..."
+    echo "Progress:"
     ollama pull llama3.2
     MODELS_NEEDED=true
 fi
 
 if ! ollama list | grep -q "mxbai-embed-large"; then
-    print_info "Embedding model not found. Downloading (this is a one-time download)..."
+    print_info "Embedding model not found. Downloading (~400MB, takes 1-3 minutes)..."
+    echo "Progress:"
     ollama pull mxbai-embed-large
     MODELS_NEEDED=true
 fi

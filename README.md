@@ -78,9 +78,10 @@ Another app is using the port. Either:
 - Edit `start.sh` and change `8501` to `8502`
 
 ### Still having issues?
-1. Make sure you're in the project folder
-2. Try deleting `venv/` folder and run again
-3. Check you have 10GB free disk space
+1. Run `./check_install.sh` to diagnose the problem
+2. Make sure you're in the project folder
+3. Try deleting `venv/` folder and run again
+4. Check you have 10GB free disk space
 
 ## 🔮 Roadmap
 
