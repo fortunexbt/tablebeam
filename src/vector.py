@@ -147,7 +147,8 @@ def create_documents(df: pd.DataFrame) -> List[Document]:
 def setup_chroma_store(documents: List[Document], 
                       data_source: str,
                       force_refresh: bool = False,
-                      k: int = 5) -> VectorStoreRetriever:
+                      k: int = 5,
+                      embedding_model: str = "mxbai-embed-large") -> VectorStoreRetriever:
     """
     Sets up a Chroma vector store with the given documents.
     
@@ -156,13 +157,14 @@ def setup_chroma_store(documents: List[Document],
         data_source: The source of the data (used for naming the collection)
         force_refresh: If True, clears existing data and recreates the store
         k: Number of documents to retrieve in searches
+        embedding_model: The Ollama embedding model to use
         
     Returns:
         VectorStoreRetriever configured for similarity search
     """
-    # Create embeddings using Ollama
+    # Create embeddings using Ollama with specified model
     embeddings = OllamaEmbeddings(
-        model="mxbai-embed-large",
+        model=embedding_model,
         base_url=os.environ.get("OLLAMA_HOST", "http://localhost:11434")
     )
     
@@ -175,38 +177,104 @@ def setup_chroma_store(documents: List[Document],
     # Set up the database location
     db_location = f"./chroma_db_clients/{collection_name}"
     
-    # Clear existing data if requested
-    if force_refresh and os.path.exists(db_location):
+    # Check if we need to clear due to embedding model change
+    metadata_file = os.path.join(db_location, ".embedding_model")
+    model_changed = False
+    
+    if os.path.exists(db_location) and os.path.exists(metadata_file):
+        try:
+            with open(metadata_file, 'r') as f:
+                stored_model = f.read().strip()
+                if stored_model != embedding_model:
+                    model_changed = True
+                    print(f"{Fore.YELLOW}Embedding model changed from {stored_model} to {embedding_model}{Style.RESET_ALL}")
+        except Exception as e:
+            logger.warning(f"Could not read embedding model metadata: {e}")
+    
+    # Clear existing data if requested or model changed
+    if (force_refresh or model_changed) and os.path.exists(db_location):
         print(f"{Fore.YELLOW}Clearing existing vector store at {db_location}...{Style.RESET_ALL}")
         shutil.rmtree(db_location)
     
     # Check if we need to add documents
-    add_documents = not os.path.exists(db_location) or force_refresh
+    add_documents = not os.path.exists(db_location) or force_refresh or model_changed
 
-    vector_store = Chroma(
-        collection_name=collection_name,
-        persist_directory=db_location,
-        embedding_function=embeddings,
-    )
+    try:
+        vector_store = Chroma(
+            collection_name=collection_name,
+            persist_directory=db_location,
+            embedding_function=embeddings,
+        )
 
-    if add_documents:
+        if add_documents:
+            print(f"{Fore.CYAN}Adding {len(documents)} documents to vector store...{Style.RESET_ALL}")
+            vector_store.add_documents(documents, ids=[doc.id for doc in documents])
+            print(f"{Fore.GREEN}Documents added successfully!{Style.RESET_ALL}")
+            
+            # Store the embedding model metadata
+            os.makedirs(db_location, exist_ok=True)
+            with open(metadata_file, 'w') as f:
+                f.write(embedding_model)
+        else:
+            print(f"{Fore.CYAN}Using existing vector store with cached data{Style.RESET_ALL}")
+            # Verify the vector store works with current embeddings
+            try:
+                # Try a simple similarity search to check compatibility
+                test_query = "test"
+                vector_store.similarity_search(test_query, k=1)
+            except Exception as e:
+                if "dimension" in str(e).lower():
+                    print(f"{Fore.RED}Dimension mismatch detected: {e}{Style.RESET_ALL}")
+                    print(f"{Fore.YELLOW}Clearing incompatible vector store...{Style.RESET_ALL}")
+                    shutil.rmtree(db_location)
+                    # Recreate with correct dimensions
+                    vector_store = Chroma(
+                        collection_name=collection_name,
+                        persist_directory=db_location,
+                        embedding_function=embeddings,
+                    )
+                    print(f"{Fore.CYAN}Adding {len(documents)} documents to vector store...{Style.RESET_ALL}")
+                    vector_store.add_documents(documents, ids=[doc.id for doc in documents])
+                    print(f"{Fore.GREEN}Documents added successfully!{Style.RESET_ALL}")
+                    # Store the embedding model metadata
+                    with open(metadata_file, 'w') as f:
+                        f.write(embedding_model)
+                else:
+                    raise
+
+    except Exception as e:
+        logger.error(f"Error setting up Chroma store: {e}")
+        # If any error, try to recover by clearing and recreating
+        if os.path.exists(db_location):
+            print(f"{Fore.YELLOW}Error detected, clearing and recreating vector store...{Style.RESET_ALL}")
+            shutil.rmtree(db_location)
+        
+        vector_store = Chroma(
+            collection_name=collection_name,
+            persist_directory=db_location,
+            embedding_function=embeddings,
+        )
         print(f"{Fore.CYAN}Adding {len(documents)} documents to vector store...{Style.RESET_ALL}")
         vector_store.add_documents(documents, ids=[doc.id for doc in documents])
         print(f"{Fore.GREEN}Documents added successfully!{Style.RESET_ALL}")
-    else:
-        print(f"{Fore.CYAN}Using existing vector store with cached data{Style.RESET_ALL}")
+        # Store the embedding model metadata
+        os.makedirs(db_location, exist_ok=True)
+        with open(metadata_file, 'w') as f:
+            f.write(embedding_model)
 
     return vector_store.as_retriever(search_kwargs={"k": k})
 
 
 def get_retriever(data_source: str = "client_tracking.csv", 
-                  force_refresh: bool = False) -> VectorStoreRetriever:
+                  force_refresh: bool = False,
+                  embedding_model: str = "mxbai-embed-large") -> VectorStoreRetriever:
     """
     Returns a vector store retriever using client data from the given source.
     
     Args:
         data_source: Either a local CSV file path or a Google Sheets URL
         force_refresh: If True, clears existing data and recreates the vector store
+        embedding_model: The Ollama embedding model to use
         
     Returns:
         VectorStoreRetriever configured with the client data
@@ -218,4 +286,4 @@ def get_retriever(data_source: str = "client_tracking.csv",
     
     # Create ChromaDB retriever
     logger.info("Using ChromaDB vector store")
-    return setup_chroma_store(docs, data_source, force_refresh)
+    return setup_chroma_store(docs, data_source, force_refresh, embedding_model=embedding_model)

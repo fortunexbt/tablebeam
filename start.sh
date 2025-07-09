@@ -169,18 +169,77 @@ print_success "Ollama is running"
 print_status "Checking AI models..."
 MODELS_NEEDED=false
 
-if ! ollama list | grep -q "llama3.2"; then
-    print_info "Language model not found. Downloading (~2GB, takes 3-10 minutes)..."
+# Detect hardware and recommend models
+print_status "Detecting hardware capabilities..."
+AVAILABLE_RAM=$(python3 -c "import psutil; print(int(psutil.virtual_memory().available / (1024**3)))" 2>/dev/null || echo "8")
+
+# Check if Apple Silicon
+IS_APPLE_SILICON=false
+APPLE_CHIP=""
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    CHIP_STRING=$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo "")
+    if echo "$CHIP_STRING" | grep -q "Apple"; then
+        IS_APPLE_SILICON=true
+        # Extract chip model
+        for chip in "M3 Max" "M3 Pro" "M3" "M2 Ultra" "M2 Max" "M2 Pro" "M2" "M1 Ultra" "M1 Max" "M1 Pro" "M1"; do
+            if echo "$CHIP_STRING" | grep -q "$chip"; then
+                APPLE_CHIP="$chip"
+                break
+            fi
+        done
+        print_info "🍎 Apple Silicon detected: ${APPLE_CHIP:-Apple Silicon}"
+        print_info "✨ Ollama automatically uses Metal GPU acceleration for optimal performance"
+        
+        # Check if MLX is available for even better performance
+        if python3 -c "import mlx" 2>/dev/null; then
+            print_success "MLX is installed - additional optimization available"
+        else
+            print_info "💡 For even better performance, consider installing MLX:"
+            print_info "   pip install mlx-lm"
+        fi
+    fi
+fi
+
+# Select appropriate models based on RAM
+if [ "$AVAILABLE_RAM" -lt 4 ]; then
+    EMBEDDING_MODEL="all-minilm"
+    LLM_MODEL="phi3:mini"
+    print_info "Limited RAM detected. Using lightweight models."
+elif [ "$AVAILABLE_RAM" -lt 8 ]; then
+    EMBEDDING_MODEL="nomic-embed-text"
+    LLM_MODEL="llama3.2:3b-instruct-q4_K_M"
+    print_info "Moderate RAM detected. Using balanced models."
+else
+    EMBEDDING_MODEL="mxbai-embed-large"
+    LLM_MODEL="mistral:7b-instruct-q4_K_M"
+    print_info "Sufficient RAM detected. Using high-quality models."
+fi
+
+# Check and download embedding model
+if ! ollama list | grep -q "$EMBEDDING_MODEL"; then
+    print_info "Embedding model ($EMBEDDING_MODEL) not found. Downloading..."
     echo "Progress:"
-    ollama pull llama3.2
+    ollama pull $EMBEDDING_MODEL
     MODELS_NEEDED=true
 fi
 
-if ! ollama list | grep -q "mxbai-embed-large"; then
-    print_info "Embedding model not found. Downloading (~400MB, takes 1-3 minutes)..."
+# Check and download language model
+if ! ollama list | grep -q "$LLM_MODEL"; then
+    print_info "Language model ($LLM_MODEL) not found. Downloading..."
     echo "Progress:"
-    ollama pull mxbai-embed-large
+    ollama pull $LLM_MODEL
     MODELS_NEEDED=true
+fi
+
+# Also ensure we have the basic models for compatibility
+if ! ollama list | grep -q "llama3.2"; then
+    print_info "Downloading default language model for compatibility..."
+    ollama pull llama3.2:latest
+fi
+
+if ! ollama list | grep -q "mxbai-embed-large"; then
+    print_info "Downloading default embedding model for compatibility..."
+    ollama pull mxbai-embed-large
 fi
 
 if [ "$MODELS_NEEDED" = true ]; then

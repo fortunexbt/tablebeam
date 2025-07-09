@@ -2,6 +2,7 @@ import streamlit as st
 import tempfile
 from pathlib import Path
 import sys
+import os
 
 # Add parent directory to path to import local modules
 sys.path.append(str(Path(__file__).parent))
@@ -19,6 +20,9 @@ def get_imports():
         from langchain.chains.combine_documents import create_stuff_documents_chain
         from langchain_core.prompts import ChatPromptTemplate
         from langchain_ollama import ChatOllama
+
+# Import model selector
+from model_selector_v2 import HardwareDetector, ModelRecommender, render_model_settings_ui
 
 # Set page config
 st.set_page_config(
@@ -143,6 +147,17 @@ if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False
 if 'current_data_source' not in st.session_state:
     st.session_state.current_data_source = None
+if 'embedding_model' not in st.session_state:
+    # Set defaults based on hardware
+    detector = HardwareDetector()
+    recommender = ModelRecommender(detector.info)
+    recommendations = recommender.recommend_models()
+    st.session_state.embedding_model = recommendations['embedding']['name']
+    st.session_state.llm_model = recommendations['llm']['name']
+if 'process_last_message' not in st.session_state:
+    st.session_state.process_last_message = False
+if 'last_embedding_model' not in st.session_state:
+    st.session_state.last_embedding_model = st.session_state.embedding_model
 
 # Header
 st.markdown("""
@@ -169,8 +184,31 @@ with st.sidebar:
     
     st.markdown("---")
     
+    # Model Settings (collapsible)
+    with st.expander("⚙️ Model Settings", expanded=False):
+        render_model_settings_ui(st)
+    
+    st.markdown("---")
+    
     # Data Source Section
     st.markdown("### 📁 Data Source")
+    
+    # Clear Vector Store button (for troubleshooting)
+    if st.session_state.data_loaded:
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            if st.button("🗑️ Clear Cache", help="Clear vector store if you're having issues"):
+                try:
+                    import shutil
+                    if os.path.exists("./chroma_db_clients/"):
+                        shutil.rmtree("./chroma_db_clients/")
+                        st.success("✅ Cache cleared")
+                        st.session_state.data_loaded = False
+                        st.session_state.retriever = None
+                        st.session_state.messages = []
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Error clearing cache: {e}")
     
     data_source = st.radio(
         "Choose your data:",
@@ -207,17 +245,25 @@ with st.sidebar:
     
     # Load data button
     if data_path:
+        # Check if embedding model changed
+        embedding_model_changed = ('last_embedding_model' in st.session_state and 
+                                   st.session_state.last_embedding_model != st.session_state.embedding_model)
+        
+        if embedding_model_changed and st.session_state.data_loaded:
+            st.warning("⚠️ Embedding model changed. Please reload your data to apply the new model.")
+        
         if st.button("🚀 Load Data", type="primary", use_container_width=True):
             with st.spinner("Processing your data..."):
                 try:
                     get_imports()  # Load heavy imports only when needed
                     df = load_client_data(data_path)
                     documents = create_documents(df)
-                    retriever = get_retriever(data_path)
+                    retriever = get_retriever(data_path, embedding_model=st.session_state.embedding_model)
                     
                     st.session_state.retriever = retriever
                     st.session_state.data_loaded = True
                     st.session_state.messages = []
+                    st.session_state.last_embedding_model = st.session_state.embedding_model
                     
                     st.success(f"✅ Loaded {len(df)} rows, {len(df.columns)} columns")
                     
@@ -255,6 +301,7 @@ if st.session_state.data_loaded:
         with cols[i % 3]:
             if st.button(question, key=f"quick_{i}", use_container_width=True):
                 st.session_state.messages.append({"role": "user", "content": question})
+                st.session_state.process_last_message = True
                 st.rerun()
     
     st.markdown("---")
@@ -265,6 +312,66 @@ if st.session_state.data_loaded:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.write(message["content"])
+    
+    # Process last message if triggered by quick question
+    if st.session_state.process_last_message and st.session_state.messages:
+        last_message = st.session_state.messages[-1]
+        if last_message["role"] == "user":
+            st.session_state.process_last_message = False
+            prompt = last_message["content"]
+            
+            # Generate and display response
+            with chat_container:
+                with st.chat_message("assistant"):
+                    with st.spinner("Analyzing..."):
+                        try:
+                            get_imports()  # Ensure imports are loaded
+                            # Set up the QA chain with selected model
+                            llm = ChatOllama(model=st.session_state.llm_model, temperature=0.7)
+                            
+                            system_prompt = (
+                                "You are a helpful data analyst assistant. "
+                                "Use the retrieved context to answer questions accurately. "
+                                "If you don't know something, say so. "
+                                "Format your responses clearly with bullet points or tables when appropriate. "
+                                "Be concise but thorough."
+                                "\n\nContext:\n{context}"
+                            )
+                            
+                            prompt_template = ChatPromptTemplate.from_messages([
+                                ("system", system_prompt),
+                                ("human", "{input}"),
+                            ])
+                            
+                            question_answer_chain = create_stuff_documents_chain(llm, prompt_template)
+                            rag_chain = create_retrieval_chain(st.session_state.retriever, question_answer_chain)
+                            
+                            # Get response
+                            response = rag_chain.invoke({"input": prompt})
+                            answer = response["answer"]
+                            
+                            # Display response
+                            st.write(answer)
+                            
+                            # Show source documents in a cleaner way
+                            if "context" in response and response["context"]:
+                                with st.expander("📄 View Source Data", expanded=False):
+                                    for i, doc in enumerate(response["context"][:3]):
+                                        st.markdown(f"**Source {i+1}:**")
+                                        st.code(doc.page_content, language="text")
+                            
+                            # Add assistant message to history
+                            st.session_state.messages.append({"role": "assistant", "content": answer})
+                            
+                        except Exception as e:
+                            st.error(f"Error: {str(e)}")
+                            with st.expander("💡 Troubleshooting"):
+                                st.markdown("""
+                                1. **Check Ollama**: Make sure it's running (`ollama serve`)
+                                2. **Check Models**: Ensure you have the selected models installed
+                                3. **Memory**: Close other applications if running out of memory
+                                4. **Embedding Model**: If you changed the embedding model, reload your data
+                                """)
     
     # Chat input at the bottom
     if prompt := st.chat_input("Ask anything about your data...", key="chat_input"):
@@ -282,8 +389,8 @@ if st.session_state.data_loaded:
                 with st.spinner("Analyzing..."):
                     try:
                         get_imports()  # Ensure imports are loaded
-                        # Set up the QA chain
-                        llm = ChatOllama(model="llama3.2", temperature=0.7)
+                        # Set up the QA chain with selected model
+                        llm = ChatOllama(model=st.session_state.llm_model, temperature=0.7)
                         
                         system_prompt = (
                             "You are a helpful data analyst assistant. "

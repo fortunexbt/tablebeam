@@ -60,6 +60,7 @@ packaging==24.2
 pandas==2.3.1
 posthog==5.4.0
 protobuf==5.29.5
+psutil==6.1.1
 pyasn1==0.6.1
 pyasn1_modules==0.4.2
 pybase64==1.4.1
