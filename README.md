@@ -40,7 +40,7 @@ cd client-tracker-assistant
 Make sure you have Python 3.9+ installed, then run:
 
 ```bash
-pip install -r requirements.txt
+pip install -r src/requirements.txt
 ```
 
 ### 3. Install and configure Ollama
@@ -81,7 +81,7 @@ The original simple way to use the assistant - perfect for personal use and data
 Make sure your `client_tracking.csv` file is in the project root:
 
 ```bash
-python chat_interface.py
+python src/chat_interface.py
 ```
 
 ### Option 2: Using Google Sheets
@@ -90,18 +90,18 @@ You can provide a Google Sheets URL in three ways:
 
 1. **As a command line argument:**
 ```bash
-python chat_interface.py "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
+python src/chat_interface.py "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
 ```
 
 2. **Via environment variable:**
 ```bash
 export CLIENT_DATA_SOURCE="https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
-python chat_interface.py
+python src/chat_interface.py
 ```
 
 3. **Interactively when prompted:**
 ```bash
-python chat_interface.py
+python src/chat_interface.py
 # Then enter the URL when asked
 ```
 
@@ -112,13 +112,13 @@ When switching between different data sources, you can clear the previous vector
 1. **Using command line flags:**
 ```bash
 # Clear all existing data before loading
-python chat_interface.py --clear
+python src/chat_interface.py --clear
 
 # Force refresh with new data (keeps old data but adds new)
-python chat_interface.py --force-refresh
+python src/chat_interface.py --force-refresh
 
 # Both work with data source arguments
-python chat_interface.py "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit" --clear
+python src/chat_interface.py "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit" --clear
 ```
 
 2. **Interactively when prompted:**
@@ -194,7 +194,7 @@ docker run -p 8000:8000 spreadsheet-qa
 kubectl apply -k k8s/overlays/production/
 ```
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for full cloud deployment instructions.
+See [Kubernetes Deployment Guide](docs/deployment/kubernetes.md) for full cloud deployment instructions.
 
 ---
 
@@ -213,7 +213,9 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for full cloud deployment instructions.
 ├── argocd/                    # ArgoCD GitOps configs
 ├── .github/workflows/         # CI/CD pipelines
 ├── Dockerfile                 # Container image definition
-├── DEPLOYMENT.md             # Cloud deployment guide
+├── docs/                      # Documentation
+│   ├── deployment/           # Deployment guides
+│   └── guides/              # User guides
 └── README.md
 ```
 
@@ -228,6 +230,18 @@ langchain-chroma
 pandas
 colorama
 ```
+
+---
+
+## 📖 Additional Documentation
+
+### Deployment Guides
+- [Kubernetes Deployment](docs/deployment/kubernetes.md) - Full K8s deployment with GPU support
+- [ArgoCD GitOps](docs/deployment/argocd.md) - Automated deployment with ArgoCD
+
+### User Guides  
+- [Google Sheets Integration](docs/guides/google-sheets.md) - Detailed Google Sheets setup
+- [Local vs Cloud Mode](docs/guides/local-vs-cloud.md) - Choosing the right deployment
 
 ---
 
