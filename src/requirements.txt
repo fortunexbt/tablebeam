@@ -76,7 +76,7 @@ referencing==0.36.2
 requests==2.32.4
 requests-oauthlib==2.0.0
 requests-toolbelt==1.0.0
-rich==14.0.0
+rich>=10.14.0,<14
 rpds-py==0.26.0
 rsa==4.9.1
 shellingham==1.5.4
@@ -100,4 +100,4 @@ websocket-client==1.8.0
 websockets==15.0.1
 zipp==3.23.0
 zstandard==0.23.0
-pinecone-client==5.0.1
+streamlit==1.40.2

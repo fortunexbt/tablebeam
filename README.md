@@ -1,187 +1,118 @@
-# 🧠 Spreadsheet Q&A Assistant
+# 📊 Spreadsheet Q&A Assistant
 
-Ask questions about your data in plain English. Works with any CSV file or Google Sheet.
+Ask questions about your spreadsheet data in plain English. Get instant AI-powered answers. **100% private** - runs entirely on your computer.
 
-## What is this?
+![Demo](https://img.shields.io/badge/Demo-Watch%20Video-red)
+![Status](https://img.shields.io/badge/Status-Ready-green)
+![License](https://img.shields.io/badge/License-MIT-blue)
 
-A privacy-first tool that lets you chat with your spreadsheet data using natural language. It runs entirely on your computer using local AI models - no data is sent to the cloud.
+## 🚀 Quick Start (2 minutes)
 
-**Example questions you can ask:**
-- "Which clients are in California?"
-- "What's the total revenue by product category?"
-- "Show me all pending orders from last month"
-- "Summarize the patterns in this data"
-
-## Quick Start
-
-### Prerequisites
-- Python 3.9+
-- [Ollama](https://ollama.com/download) (free local AI runtime)
-
-### Installation
-
+### macOS/Linux:
 ```bash
-# 1. Clone and enter the project
-git clone https://github.com/smokingfive/client-tracker-assistant.git
+git clone https://github.com/yourusername/client-tracker-assistant.git
 cd client-tracker-assistant
-
-# 2. Install dependencies
-pip install -r src/requirements.txt
-
-# 3. Download AI models (one-time setup, ~2GB)
-ollama pull llama3.2
-ollama pull mxbai-embed-large
+./start.sh
 ```
 
-### Basic Usage
-
-```bash
-# Interactive mode (prompts for data source)
-python src/chat_interface.py
-
-# With a CSV file
-python src/chat_interface.py data.csv
-
-# With Google Sheets
-python src/chat_interface.py "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
+### Windows:
+```cmd
+git clone https://github.com/yourusername/client-tracker-assistant.git
+cd client-tracker-assistant
+start.bat
 ```
 
-That's it! The assistant will load your data and you can start asking questions.
+**That's it!** The app will:
+- ✅ Check all requirements
+- ✅ Install everything needed
+- ✅ Download AI models (first time only)
+- ✅ Open in your browser automatically
 
-## Features
+## 🎯 What You Can Do
 
-✅ **Universal** - Works with ANY spreadsheet structure  
-✅ **Private** - Everything runs locally on your machine  
-✅ **Smart** - Uses semantic search to understand your questions  
-✅ **Flexible** - Accepts CSV files or Google Sheets URLs  
-✅ **Simple** - No API keys or cloud accounts needed  
+Upload any CSV or connect Google Sheets, then ask questions like:
+- "What are the main trends in this data?"
+- "Show me the top 10 entries by revenue"
+- "Which categories have the most items?"
+- "Summarize the key insights"
+- "Find all records from last month"
 
-## Data Sources
+## 📸 Screenshots
 
-### Local CSV Files
-Drop any CSV file in the project folder or provide the path:
-```bash
-python src/chat_interface.py path/to/your/data.csv
-```
+### Beautiful Dark Theme UI
+The app features a modern, professional interface:
+- 🌙 Dark theme that's easy on the eyes
+- 📊 Clean data visualization
+- 💬 Chat-style interaction
+- 🚀 LOCAL/CLOUD mode toggle (cloud coming soon)
 
-### Google Sheets
-Make your sheet viewable by anyone with the link, then:
-```bash
-python src/chat_interface.py "YOUR_GOOGLE_SHEETS_URL"
-```
+### Smart Features
+- **Drag & Drop**: Just drop your CSV file
+- **Google Sheets**: Paste URL and connect instantly  
+- **Natural Language**: No SQL or coding required
+- **Privacy First**: Your data never leaves your computer
 
-Supported formats:
-- Full URL: `https://docs.google.com/spreadsheets/d/abc123/edit`
-- Just the ID: `abc123`
-- With specific tab: `https://docs.google.com/spreadsheets/d/abc123/edit#gid=0`
+## 🛠 Requirements
 
-## Command Line Options
+The start script checks and helps install everything:
+- **Python 3.9+** (guides you if missing)
+- **Ollama** (guides you if missing)
+- **10GB disk space** (for AI models)
+- **8GB RAM** (16GB recommended)
 
-```bash
-# Clear previous data and start fresh
-python src/chat_interface.py --clear
+## 🆘 Troubleshooting
 
-# Refresh data while keeping existing embeddings
-python src/chat_interface.py --force-refresh
+### "Python not found"
+- **Windows**: Download from [python.org](https://python.org) - CHECK "Add to PATH"!
+- **Mac**: Usually pre-installed, or use `brew install python3`
+- **Linux**: Use `sudo apt install python3` or equivalent
 
-# Combine with data source
-python src/chat_interface.py data.csv --clear
-```
+### "Ollama not found"
+The script will guide you, but:
+- **Mac**: [Download Ollama for Mac](https://ollama.com/download/mac)
+- **Windows**: [Download Ollama for Windows](https://ollama.com/download/windows)
+- **Linux**: Run `curl -fsSL https://ollama.com/install.sh | sh`
 
-## Advanced Usage
+### "Port 8501 in use"
+Another app is using the port. Either:
+- Close other Streamlit apps, OR
+- Edit `start.sh` and change `8501` to `8502`
 
-### API Server Mode
+### Still having issues?
+1. Make sure you're in the project folder
+2. Try deleting `venv/` folder and run again
+3. Check you have 10GB free disk space
 
-For production deployments or integrations:
+## 🔮 Roadmap
 
-```bash
-# Run as REST API
-python src/api_server.py
+### Now (Local Mode)
+- ✅ CSV file upload
+- ✅ Google Sheets connection
+- ✅ Natural language Q&A
+- ✅ 100% private & local
 
-# With Docker
-docker build -t spreadsheet-qa .
-docker run -p 8000:8000 spreadsheet-qa
-```
+### Coming Soon (Cloud Mode)
+- ⚡ 10x faster with GPU processing
+- 👥 Team collaboration
+- 💾 Save and share insights
+- 🔌 API for integrations
+- 📱 Mobile app
 
-See [deployment docs](docs/deployment/) for Kubernetes and cloud options.
+## 💡 Pro Tips
 
-### Environment Variables
+1. **First time?** The AI model download takes 5-10 minutes (one time only)
+2. **Google Sheets**: Must be "viewable by anyone with link"
+3. **Large files**: Start with a smaller sample first
+4. **Best results**: Ask specific questions about your data
 
-```bash
-# Set default data source
-export CLIENT_DATA_SOURCE="path/to/data.csv"
+## 🤝 Contributing
 
-# Use Pinecone for cloud vector storage (requires API key)
-export VECTOR_STORE_TYPE="pinecone"
-export PINECONE_API_KEY="your-key"
-```
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-## Documentation
+## 📄 License
 
-- [Google Sheets Guide](docs/guides/google-sheets.md) - Detailed setup instructions
-- [Local vs Cloud Mode](docs/guides/local-vs-cloud.md) - Deployment options
-- [Kubernetes Deployment](docs/deployment/kubernetes.md) - Production setup
-- [ArgoCD GitOps](docs/deployment/argocd.md) - Automated deployments
-
-## How it Works
-
-1. **Load** - Reads your CSV or Google Sheets data
-2. **Index** - Creates semantic embeddings of your data using `mxbai-embed-large`
-3. **Search** - Finds relevant records based on your question
-4. **Answer** - Uses `llama3.2` to generate natural language responses
-
-All processing happens locally using:
-- **Ollama** for running AI models
-- **ChromaDB** for vector storage
-- **LangChain** for orchestration
-
-## Troubleshooting
-
-**"Ollama not found"**
-- Make sure Ollama is installed and running
-- Try: `ollama serve` in another terminal
-
-**"Model not found"**  
-- Pull the required models: `ollama pull llama3.2`
-
-**"Access denied" with Google Sheets**
-- Ensure sheet is set to "Anyone with link can view"
-
-**Out of memory**
-- Close other applications
-- Try with a smaller dataset first
-
-## What's New 🎉
-
-This project recently merged three major feature branches:
-- **Flexible CSV Support** - Now works with ANY data structure
-- **Cloud Infrastructure** - Production-ready Kubernetes deployment
-- **Generic Spreadsheet Q&A** - Removed client-tracking specific code
-
-See [CHANGELOG.md](CHANGELOG.md) for full details.
-
-## Project Status
-
-This is an actively maintained project that combines:
-- The simplicity of a local CLI tool
-- The scalability of cloud deployment options
-- Support for both CSV files and Google Sheets
-
-Check [TODO.md](TODO.md) for planned features and ways to contribute.
-
-## Contributing
-
-Contributions welcome! Feel free to:
-- Pick an item from [TODO.md](TODO.md)
-- Open issues for bugs or features
-- Submit pull requests
-- Improve documentation
-- Share your use cases
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file
+MIT License - use freely for any purpose.
 
 ---
 
-Built with ❤️ by [@raj panesar](https://github.com/rajpanesar)
+**Built with ❤️ by the community** | [Report Issues](https://github.com/yourusername/client-tracker-assistant/issues)

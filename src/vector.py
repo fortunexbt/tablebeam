@@ -4,7 +4,7 @@ from langchain_core.documents import Document
 import pandas as pd
 import os
 import shutil
-from typing import List, Union, Optional
+from typing import List, Union
 from langchain_core.vectorstores import VectorStoreRetriever
 from colorama import Fore, Style
 from gsheet_loader import load_gsheet_as_csv, extract_sheet_id
@@ -49,124 +49,138 @@ def load_client_data(source: str) -> pd.DataFrame:
         return pd.read_csv(source)
 
 
+def detect_primary_key(df: pd.DataFrame) -> str:
+    """
+    Intelligently detects the primary key column from the DataFrame.
+    
+    Priority order:
+    1. Column named 'id' (case-insensitive)
+    2. Column named 'name' (case-insensitive)
+    3. Column containing 'client' or 'company' (case-insensitive)
+    4. First column that appears to have unique or mostly unique values
+    5. Fall back to the first column
+    
+    Args:
+        df: The DataFrame to analyze
+        
+    Returns:
+        The name of the detected primary key column
+    """
+    columns_lower = {col.lower(): col for col in df.columns}
+    
+    # Check for 'id' column
+    if 'id' in columns_lower:
+        return columns_lower['id']
+    
+    # Check for 'name' column
+    if 'name' in columns_lower:
+        return columns_lower['name']
+    
+    # Check for columns containing 'client' or 'company'
+    for keyword in ['client', 'company', 'customer', 'account']:
+        for col_lower, col_original in columns_lower.items():
+            if keyword in col_lower:
+                return col_original
+    
+    # Check for columns with high uniqueness (>80% unique values)
+    for col in df.columns:
+        if df[col].dtype == 'object':  # Only check string columns
+            uniqueness_ratio = len(df[col].unique()) / len(df)
+            if uniqueness_ratio > 0.8:
+                return col
+    
+    # Fall back to first column
+    return df.columns[0]
+
+
 def create_documents(df: pd.DataFrame) -> List[Document]:
     """
-    Converts a DataFrame into LangChain Document objects for vector storage.
-    Works with ANY spreadsheet structure - adapts to whatever columns are present.
+    Creates LangChain Document objects from the DataFrame rows.
+    
+    Args:
+        df: pandas DataFrame containing the data
+        
+    Returns:
+        List of Document objects ready for vector storage
     """
-    if df.empty:
-        raise ValueError("The spreadsheet is empty")
-    
-    if len(df.columns) == 0:
-        raise ValueError("The spreadsheet has no columns")
-    
     documents = []
-    columns = df.columns.tolist()
     
-    # Identify potential primary key columns (for highlighting)
-    primary_keys = ['id', 'name', 'client', 'company', 'title', 'subject', 'product']
-    primary_col = None
+    # Detect the primary key column
+    primary_key_col = detect_primary_key(df)
+    print(f"{Fore.YELLOW}Using '{primary_key_col}' as primary identifier{Style.RESET_ALL}")
     
-    # Find the first column that might be a primary identifier
-    for col in columns:
-        if col.lower() in primary_keys:
-            primary_col = col
-            break
+    # Convert DataFrame to string representation for better searchability
+    df_str = df.astype(str)
     
-    # If no primary key found, use the first column
-    if not primary_col and columns:
-        primary_col = columns[0]
+    for idx, row in df.iterrows():
+        # Create a text representation of the row
+        # Format: "ColumnName: Value" for each column, joined by commas
+        row_text_parts = []
+        metadata = {"row_index": idx}
+        
+        for col in df.columns:
+            value = row[col]
+            # Skip NaN values
+            if pd.notna(value):
+                row_text_parts.append(f"{col}: {value}")
+                # Store all values in metadata for structured retrieval
+                metadata[col] = str(value)
+        
+        # Join all parts into a single text
+        page_content = ", ".join(row_text_parts)
+        
+        # Create document with primary key as the ID
+        primary_key_value = str(row[primary_key_col]) if pd.notna(row[primary_key_col]) else f"row_{idx}"
+        doc_id = f"doc_{primary_key_value}_{idx}"
+        
+        doc = Document(
+            page_content=page_content,
+            metadata=metadata,
+            id=doc_id
+        )
+        documents.append(doc)
     
-    print(f"\n{Fore.CYAN}Detected {len(columns)} columns: {', '.join(columns[:5])}{' ...' if len(columns) > 5 else ''}{Style.RESET_ALL}")
-    if primary_col:
-        print(f"{Fore.YELLOW}Using '{primary_col}' as primary identifier{Style.RESET_ALL}")
-    
-    for i, row in df.iterrows():
-        # Build the document content dynamically
-        content_lines = []
-        
-        # Add primary field with highlighting if it exists
-        if primary_col and pd.notna(row.get(primary_col)):
-            content_lines.append(f"{Fore.YELLOW}{primary_col}: {row[primary_col]}{Style.RESET_ALL}")
-        
-        # Add all other fields
-        for col in columns:
-            if col != primary_col and pd.notna(row.get(col)):
-                # Clean the value and skip if empty
-                value = str(row[col]).strip()
-                if value and value.lower() not in ['nan', 'none', '']:
-                    content_lines.append(f"{col}: {value}")
-        
-        # Combine all lines into page content
-        page_content = "\n".join(content_lines)
-        
-        # Build metadata dynamically
-        metadata = {"row_index": i}
-        
-        # Add important fields to metadata for better search
-        metadata_candidates = ['id', 'name', 'client', 'company', 'type', 'category', 
-                              'status', 'date', 'created', 'updated', 'size', 'account']
-        
-        for col in columns:
-            if col.lower() in metadata_candidates and pd.notna(row.get(col)):
-                # Use lowercase keys for metadata
-                metadata[col.lower()] = str(row[col])
-        
-        # Create document only if there's content
-        if page_content.strip():
-            document = Document(
-                page_content=page_content,
-                metadata=metadata,
-                id=f"row_{i}",
-            )
-            documents.append(document)
-    
-    print(f"{Fore.GREEN}✓ Created {len(documents)} documents from {len(df)} rows{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}You can now ask questions about any information in your spreadsheet!{Style.RESET_ALL}")
-    
+    print(f"{Fore.GREEN}Created {len(documents)} documents from {len(df)} rows{Style.RESET_ALL}")
     return documents
 
 
-def clear_vector_store(db_location: str = "./chroma_db_clients") -> None:
+def setup_chroma_store(documents: List[Document], 
+                      data_source: str,
+                      force_refresh: bool = False,
+                      k: int = 5) -> VectorStoreRetriever:
     """
-    Clears the vector store by removing the database directory.
+    Sets up a Chroma vector store with the given documents.
     
     Args:
-        db_location: Path to the Chroma database directory
+        documents: List of Document objects to store
+        data_source: The source of the data (used for naming the collection)
+        force_refresh: If True, clears existing data and recreates the store
+        k: Number of documents to retrieve in searches
+        
+    Returns:
+        VectorStoreRetriever configured for similarity search
     """
-    if os.path.exists(db_location):
-        print(f"{Fore.YELLOW}Clearing vector store at {db_location}...{Style.RESET_ALL}")
-        shutil.rmtree(db_location)
-        print(f"{Fore.GREEN}Vector store cleared successfully!{Style.RESET_ALL}")
+    # Create embeddings using Ollama
+    embeddings = OllamaEmbeddings(
+        model="mxbai-embed-large",
+        base_url=os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+    )
+    
+    # Create a collection name based on the data source
+    if data_source.startswith('http'):
+        collection_name = "gsheet_data"
     else:
-        print(f"{Fore.CYAN}No existing vector store found at {db_location}{Style.RESET_ALL}")
-
-
-def setup_vector_store(
-    documents: List[Document],
-    db_location: str = "./chroma_db_clients",
-    model_name: str = "mxbai-embed-large",
-    collection_name: str = "client_tracking",
-    k: int = 20,
-    force_refresh: bool = False,
-) -> VectorStoreRetriever:
-    """
-    Sets up and returns a Chroma vector store retriever.
+        collection_name = os.path.basename(data_source).replace('.csv', '').replace('.', '_')
     
-    Args:
-        documents: List of documents to add to the vector store
-        db_location: Path to the Chroma database directory
-        model_name: Name of the Ollama embedding model
-        collection_name: Name of the Chroma collection
-        k: Number of documents to retrieve
-        force_refresh: If True, clears existing data and recreates the vector store
-    """
-    embeddings = OllamaEmbeddings(model=model_name)
+    # Set up the database location
+    db_location = f"./chroma_db_clients/{collection_name}"
     
-    # Clear existing data if force_refresh is True
-    if force_refresh:
-        clear_vector_store(db_location)
+    # Clear existing data if requested
+    if force_refresh and os.path.exists(db_location):
+        print(f"{Fore.YELLOW}Clearing existing vector store at {db_location}...{Style.RESET_ALL}")
+        shutil.rmtree(db_location)
     
+    # Check if we need to add documents
     add_documents = not os.path.exists(db_location) or force_refresh
 
     vector_store = Chroma(
@@ -186,43 +200,22 @@ def setup_vector_store(
 
 
 def get_retriever(data_source: str = "client_tracking.csv", 
-                  force_refresh: bool = False,
-                  vector_store_type: Optional[str] = None,
-                  namespace: Optional[str] = None) -> VectorStoreRetriever:
+                  force_refresh: bool = False) -> VectorStoreRetriever:
     """
     Returns a vector store retriever using client data from the given source.
     
     Args:
         data_source: Either a local CSV file path or a Google Sheets URL
         force_refresh: If True, clears existing data and recreates the vector store
-        vector_store_type: Type of vector store to use ('chroma' or 'pinecone').
-                          If None, uses VECTOR_STORE_TYPE env var or defaults to 'chroma'
-        namespace: Optional namespace for Pinecone (ignored for ChromaDB)
         
     Returns:
         VectorStoreRetriever configured with the client data
     """
-    # Determine vector store type
-    if vector_store_type is None:
-        vector_store_type = os.environ.get("VECTOR_STORE_TYPE", "chroma").lower()
-    
     # Load data
     df = load_client_data(data_source)
     analyze_dataframe(df)  # Show data structure
     docs = create_documents(df)
     
-    # Create appropriate retriever
-    if vector_store_type == "pinecone":
-        logger.info("Using Pinecone vector store")
-        try:
-            from .pinecone_vector import setup_pinecone_store
-            return setup_pinecone_store(docs, namespace=namespace)
-        except ImportError:
-            logger.error("Pinecone dependencies not installed. Please install pinecone-client.")
-            raise
-        except Exception as e:
-            logger.error(f"Failed to initialize Pinecone: {e}")
-            raise
-    else:
-        logger.info("Using ChromaDB vector store")
-        return setup_vector_store(docs, force_refresh=force_refresh)
+    # Create ChromaDB retriever
+    logger.info("Using ChromaDB vector store")
+    return setup_chroma_store(docs, data_source, force_refresh)
