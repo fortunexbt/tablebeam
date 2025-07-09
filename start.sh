@@ -124,25 +124,14 @@ print_status "Installing $TOTAL_PACKAGES Python packages..."
 print_info "This typically takes 5-15 minutes on first install"
 echo
 
-# Function to show simplified progress
-show_progress() {
-    local current=0
-    while IFS= read -r line; do
-        if [[ "$line" == *"Collecting"* ]]; then
-            ((current++))
-            printf "\r📦 Installing packages: [%-50s] %d/%d" "$(printf '#%.0s' $(seq 1 $((current*50/TOTAL_PACKAGES))))" "$current" "$TOTAL_PACKAGES"
-        elif [[ "$line" == *"ERROR"* ]] || [[ "$line" == *"error"* ]]; then
-            echo -e "\n$line"
-        fi
-    done
-    echo -e "\n"
-}
-
-# Install requirements with simplified output
-pip install -r src/requirements.txt --no-cache-dir 2>&1 | show_progress || {
+# Install requirements with clean output
+echo "📦 Installing packages (this will take 5-15 minutes)..."
+echo "   Please be patient - no news is good news!"
+echo
+pip install -r src/requirements.txt --no-cache-dir -q --disable-pip-version-check || {
     print_error "Package installation failed! Trying minimal requirements..."
     echo
-    pip install -r src/requirements-minimal.txt --no-cache-dir -q || {
+    pip install -r src/requirements-minimal.txt --no-cache-dir -q --disable-pip-version-check || {
         print_error "Minimal installation also failed!"
         print_info "Common fixes:"
         print_info "1. Delete venv/ folder and try again"
