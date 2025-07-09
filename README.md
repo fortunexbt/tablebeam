@@ -1,20 +1,28 @@
 # 🧠 Spreadsheet Q&A Assistant
 
-This is a terminal-based assistant that uses [LangChain](https://www.langchain.com/) and [Ollama](https://ollama.com/) to answer natural language questions about ANY spreadsheet or CSV file.
+A versatile assistant that uses [LangChain](https://www.langchain.com/) and [Ollama](https://ollama.com/) to answer natural language questions about ANY spreadsheet or CSV file. Available as both a local terminal application and a cloud-ready API service.
 
-It loads data from CSV files or Google Sheets, stores embeddings using ChromaDB, and responds to your queries using a local LLM (`llama3.2` via Ollama). Works with any data structure - client lists, inventory, financial data, or any tabular information!
+It loads data from CSV files or Google Sheets, stores embeddings using ChromaDB or Pinecone, and responds to your queries using a local LLM (`llama3.2` via Ollama). Works with any data structure - client lists, inventory, financial data, or any tabular information!
 
 ---
 
 ## 🚀 Features
 
+### Core Features
 - Works with **ANY spreadsheet structure** - no specific columns required
 - Load data from local CSV files or Google Sheets URLs
 - Semantic search over your data using `mxbai-embed-large` embeddings
 - Local LLM Q&A with `llama3.2` - no API keys needed
 - Automatically adapts to your column names and data structure
 - Terminal interface with color-highlighted prompts
-- Privacy-first: all processing happens locally
+- Privacy-first: all processing happens locally (in local mode)
+
+### New Cloud Features
+- **REST API Server**: Deploy as a scalable web service with FastAPI
+- **Kubernetes Ready**: Full K8s deployment configs with ArgoCD support
+- **Pinecone Integration**: Optional cloud vector store for production deployments
+- **Docker Support**: Containerized deployment with multi-stage builds
+- **GitHub Actions**: Automated CI/CD pipeline
 
 ---
 
@@ -62,9 +70,11 @@ pip install -r requirements.txt
 
 ---
 
-## 🧪 Run the Assistant
+## 🧪 Usage
 
-You can now load data from either a local CSV file or a Google Sheet!
+### Local Mode (Terminal Interface)
+
+The original simple way to use the assistant - perfect for personal use and data privacy.
 
 ### Option 1: Using a Local CSV File
 
@@ -157,14 +167,53 @@ The assistant adapts to your data! Here are some example questions based on diff
 
 ---
 
+### Cloud Mode (API Server)
+
+Deploy as a production-ready API service:
+
+1. **Run with default settings (ChromaDB):**
+```bash
+python src/api_server.py
+```
+
+2. **Run with Pinecone (requires API key):**
+```bash
+export PINECONE_API_KEY="your-api-key"
+export VECTOR_STORE_TYPE="pinecone"
+python src/api_server.py
+```
+
+3. **Deploy with Docker:**
+```bash
+docker build -t spreadsheet-qa .
+docker run -p 8000:8000 spreadsheet-qa
+```
+
+4. **Deploy on Kubernetes:**
+```bash
+kubectl apply -k k8s/overlays/production/
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for full cloud deployment instructions.
+
+---
+
 ## 📝 Project Structure
 
 ```bash
 .
-├── chat_interface.py       # Terminal UI for asking questions
-├── vector.py               # Vector DB loading and retriever setup
-├── client_tracking.csv     # Source data file
-├── requirements.txt        # Python dependencies
+├── src/
+│   ├── chat_interface.py       # Terminal UI for local use
+│   ├── api_server.py          # FastAPI server for cloud deployment
+│   ├── vector.py              # Vector store abstraction (ChromaDB/Pinecone)
+│   ├── gsheet_loader.py       # Google Sheets integration
+│   ├── pinecone_vector.py     # Pinecone-specific implementation
+│   └── requirements.txt       # Python dependencies
+├── k8s/                       # Kubernetes deployment configs
+├── argocd/                    # ArgoCD GitOps configs
+├── .github/workflows/         # CI/CD pipelines
+├── Dockerfile                 # Container image definition
+├── DEPLOYMENT.md             # Cloud deployment guide
 └── README.md
 ```
 
@@ -182,13 +231,32 @@ colorama
 
 ---
 
+## 🔀 Choosing Between Local and Cloud Mode
+
+### Use Local Mode When:
+- Working with sensitive data that must stay on your machine
+- Personal use or small teams
+- You want the simplest setup with no infrastructure
+- Privacy is paramount
+
+### Use Cloud Mode When:
+- Building a production application
+- Need to serve multiple users concurrently
+- Want to integrate with other services via API
+- Need scalable vector storage (Pinecone)
+- Deploying to Kubernetes/cloud platforms
+
+---
+
 ## 📌 Notes
 
-* Vector data is stored in `./chroma_db_clients/`. Delete to rebuild from scratch.
-* "Client" field is highlighted in yellow in terminal output.
+* **Local Mode**: Vector data is stored in `./chroma_db_clients/`. Delete to rebuild from scratch.
+* **Cloud Mode**: Can use either ChromaDB (local storage) or Pinecone (cloud storage).
+* The first column or common identifier fields are highlighted in yellow in terminal output.
 * Embeddings exclude terminal color codes for accuracy.
-* Use `--clear` flag to start fresh when switching between different Google Sheets.
+* Use `--clear` flag to start fresh when switching between different data sources.
 * Use `--force-refresh` to update the vector store with new data while keeping existing embeddings.
+* All features work with ANY spreadsheet structure - the system adapts to your column names.
 
 ---
 
