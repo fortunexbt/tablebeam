@@ -52,8 +52,14 @@ def load_client_data(source: str) -> pd.DataFrame:
 def create_documents(df: pd.DataFrame) -> List[Document]:
     """
     Converts a DataFrame into LangChain Document objects for vector storage.
-    Automatically adapts to any CSV structure by using all available columns.
+    Works with ANY spreadsheet structure - adapts to whatever columns are present.
     """
+    if df.empty:
+        raise ValueError("The spreadsheet is empty")
+    
+    if len(df.columns) == 0:
+        raise ValueError("The spreadsheet has no columns")
+    
     documents = []
     columns = df.columns.tolist()
     
@@ -71,7 +77,7 @@ def create_documents(df: pd.DataFrame) -> List[Document]:
     if not primary_col and columns:
         primary_col = columns[0]
     
-    print(f"{Fore.CYAN}Detected {len(columns)} columns: {', '.join(columns)}{Style.RESET_ALL}")
+    print(f"\n{Fore.CYAN}Detected {len(columns)} columns: {', '.join(columns[:5])}{' ...' if len(columns) > 5 else ''}{Style.RESET_ALL}")
     if primary_col:
         print(f"{Fore.YELLOW}Using '{primary_col}' as primary identifier{Style.RESET_ALL}")
     
@@ -115,7 +121,9 @@ def create_documents(df: pd.DataFrame) -> List[Document]:
             )
             documents.append(document)
     
-    print(f"{Fore.GREEN}Created {len(documents)} documents from {len(df)} rows{Style.RESET_ALL}")
+    print(f"{Fore.GREEN}✓ Created {len(documents)} documents from {len(df)} rows{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}You can now ask questions about any information in your spreadsheet!{Style.RESET_ALL}")
+    
     return documents
 
 

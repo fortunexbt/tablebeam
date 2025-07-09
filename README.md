@@ -1,18 +1,20 @@
-# 🧠 Client Tracker Q&A Assistant
+# 🧠 Spreadsheet Q&A Assistant
 
-This is a terminal-based assistant that uses [LangChain](https://www.langchain.com/) and [Ollama](https://ollama.com/) to answer natural language questions about institutional validators, onboarding progress, assets, and more.
+This is a terminal-based assistant that uses [LangChain](https://www.langchain.com/) and [Ollama](https://ollama.com/) to answer natural language questions about ANY spreadsheet or CSV file.
 
-It loads client data from a CSV file, stores embeddings using ChromaDB, and responds to your queries using a local LLM (`llama3.2` via Ollama).
+It loads data from CSV files or Google Sheets, stores embeddings using ChromaDB, and responds to your queries using a local LLM (`llama3.2` via Ollama). Works with any data structure - client lists, inventory, financial data, or any tabular information!
 
 ---
 
 ## 🚀 Features
 
-- Semantic search over structured client records
-- Embedded using `mxbai-embed-large` via Ollama
-- Local LLM Q&A with `llama3.2`
+- Works with **ANY spreadsheet structure** - no specific columns required
+- Load data from local CSV files or Google Sheets URLs
+- Semantic search over your data using `mxbai-embed-large` embeddings
+- Local LLM Q&A with `llama3.2` - no API keys needed
+- Automatically adapts to your column names and data structure
 - Terminal interface with color-highlighted prompts
-- Easily extensible to web or chatbot frontends
+- Privacy-first: all processing happens locally
 
 ---
 
@@ -136,14 +138,22 @@ Ask your question about a validator/client (q to quit):
 
 ## 💬 Sample Questions
 
-Try asking:
+The assistant adapts to your data! Here are some example questions based on different data types:
 
-* `What onboarding steps are still pending for Meria?`
-* `Which clients have AUM greater than $1 billion?`
-* `Who did Lorenzo speak with in Dubai?`
-* `What is the current status of Globalstake's Fireblocks integration?`
-* `Summarize all updates for Chorus One.`
-* `Which clients are using DFNS?`
+**For client/customer data:**
+* `Which clients are in California?`
+* `What's the total revenue from enterprise customers?`
+* `Show me all pending orders`
+
+**For inventory/product data:**
+* `Which products are low in stock?`
+* `What's the average price of items in category X?`
+* `List all products from supplier Y`
+
+**For any spreadsheet:**
+* `Summarize the data in this spreadsheet`
+* `What patterns do you see in the data?`
+* `Find all records where [column] contains [value]`
 
 ---
 
