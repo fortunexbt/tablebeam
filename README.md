@@ -1,281 +1,168 @@
 # 🧠 Spreadsheet Q&A Assistant
 
-A versatile assistant that uses [LangChain](https://www.langchain.com/) and [Ollama](https://ollama.com/) to answer natural language questions about ANY spreadsheet or CSV file. Available as both a local terminal application and a cloud-ready API service.
+Ask questions about your data in plain English. Works with any CSV file or Google Sheet.
 
-It loads data from CSV files or Google Sheets, stores embeddings using ChromaDB or Pinecone, and responds to your queries using a local LLM (`llama3.2` via Ollama). Works with any data structure - client lists, inventory, financial data, or any tabular information!
+## What is this?
 
----
+A privacy-first tool that lets you chat with your spreadsheet data using natural language. It runs entirely on your computer using local AI models - no data is sent to the cloud.
 
-## 🚀 Features
+**Example questions you can ask:**
+- "Which clients are in California?"
+- "What's the total revenue by product category?"
+- "Show me all pending orders from last month"
+- "Summarize the patterns in this data"
 
-### Core Features
-- Works with **ANY spreadsheet structure** - no specific columns required
-- Load data from local CSV files or Google Sheets URLs
-- Semantic search over your data using `mxbai-embed-large` embeddings
-- Local LLM Q&A with `llama3.2` - no API keys needed
-- Automatically adapts to your column names and data structure
-- Terminal interface with color-highlighted prompts
-- Privacy-first: all processing happens locally (in local mode)
+## Quick Start
 
-### New Cloud Features
-- **REST API Server**: Deploy as a scalable web service with FastAPI
-- **Kubernetes Ready**: Full K8s deployment configs with ArgoCD support
-- **Pinecone Integration**: Optional cloud vector store for production deployments
-- **Docker Support**: Containerized deployment with multi-stage builds
-- **GitHub Actions**: Automated CI/CD pipeline
+### Prerequisites
+- Python 3.9+
+- [Ollama](https://ollama.com/download) (free local AI runtime)
 
----
-
-## 📦 Installation
-
-### 1. Clone the repository
+### Installation
 
 ```bash
-git clone https://github.com/your-org/client-tracker-assistant.git
+# 1. Clone and enter the project
+git clone https://github.com/smokingfive/client-tracker-assistant.git
 cd client-tracker-assistant
-````
 
-### 2. Install Python dependencies
-
-Make sure you have Python 3.9+ installed, then run:
-
-```bash
+# 2. Install dependencies
 pip install -r src/requirements.txt
+
+# 3. Download AI models (one-time setup, ~2GB)
+ollama pull llama3.2
+ollama pull mxbai-embed-large
 ```
 
-### 3. Install and configure Ollama
-
-#### 🔧 Step-by-step:
-
-1. **Install Ollama** from [https://ollama.com/download](https://ollama.com/download)
-
-   * macOS: via `.dmg` or `brew install ollama`
-   * Linux: run the official install script
-   * Windows: via `.exe` installer
-
-2. **Verify installation**:
-
-   ```bash
-   ollama --version
-   ```
-
-3. **Pull required models**:
-
-   These may take a few minutes to download:
-
-   ```bash
-   ollama pull llama3.2
-   ollama pull mxbai-embed-large
-   ```
-
----
-
-## 🧪 Usage
-
-### Local Mode (Terminal Interface)
-
-The original simple way to use the assistant - perfect for personal use and data privacy.
-
-### Option 1: Using a Local CSV File
-
-Make sure your `client_tracking.csv` file is in the project root:
+### Basic Usage
 
 ```bash
+# Interactive mode (prompts for data source)
 python src/chat_interface.py
-```
 
-### Option 2: Using Google Sheets
+# With a CSV file
+python src/chat_interface.py data.csv
 
-You can provide a Google Sheets URL in three ways:
-
-1. **As a command line argument:**
-```bash
+# With Google Sheets
 python src/chat_interface.py "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
 ```
 
-2. **Via environment variable:**
+That's it! The assistant will load your data and you can start asking questions.
+
+## Features
+
+✅ **Universal** - Works with ANY spreadsheet structure  
+✅ **Private** - Everything runs locally on your machine  
+✅ **Smart** - Uses semantic search to understand your questions  
+✅ **Flexible** - Accepts CSV files or Google Sheets URLs  
+✅ **Simple** - No API keys or cloud accounts needed  
+
+## Data Sources
+
+### Local CSV Files
+Drop any CSV file in the project folder or provide the path:
 ```bash
-export CLIENT_DATA_SOURCE="https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit"
-python src/chat_interface.py
+python src/chat_interface.py path/to/your/data.csv
 ```
 
-3. **Interactively when prompted:**
+### Google Sheets
+Make your sheet viewable by anyone with the link, then:
 ```bash
-python src/chat_interface.py
-# Then enter the URL when asked
+python src/chat_interface.py "YOUR_GOOGLE_SHEETS_URL"
 ```
 
-### Clearing Previous Data
+Supported formats:
+- Full URL: `https://docs.google.com/spreadsheets/d/abc123/edit`
+- Just the ID: `abc123`
+- With specific tab: `https://docs.google.com/spreadsheets/d/abc123/edit#gid=0`
 
-When switching between different data sources, you can clear the previous vector store:
+## Command Line Options
 
-1. **Using command line flags:**
 ```bash
-# Clear all existing data before loading
+# Clear previous data and start fresh
 python src/chat_interface.py --clear
 
-# Force refresh with new data (keeps old data but adds new)
+# Refresh data while keeping existing embeddings
 python src/chat_interface.py --force-refresh
 
-# Both work with data source arguments
-python src/chat_interface.py "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/edit" --clear
+# Combine with data source
+python src/chat_interface.py data.csv --clear
 ```
 
-2. **Interactively when prompted:**
-   - When running without arguments, you'll be asked if you want to clear existing data
+## Advanced Usage
 
-3. **Manually delete the vector store:**
+### API Server Mode
+
+For production deployments or integrations:
+
 ```bash
-rm -rf ./chroma_db_clients/
-```
-
-**Important**: Your Google Sheet must be publicly accessible (view-only is fine):
-- In Google Sheets: Share → Change to "Anyone with the link can view"
-
-### Supported Google Sheets Formats
-
-- Full URL: `https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit`
-- With specific sheet/tab: `https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit#gid=123`
-- Just the ID: `1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms`
-
-You'll see a prompt like:
-
-```
-Ask your question about a validator/client (q to quit):
-```
-
----
-
-## 💬 Sample Questions
-
-The assistant adapts to your data! Here are some example questions based on different data types:
-
-**For client/customer data:**
-* `Which clients are in California?`
-* `What's the total revenue from enterprise customers?`
-* `Show me all pending orders`
-
-**For inventory/product data:**
-* `Which products are low in stock?`
-* `What's the average price of items in category X?`
-* `List all products from supplier Y`
-
-**For any spreadsheet:**
-* `Summarize the data in this spreadsheet`
-* `What patterns do you see in the data?`
-* `Find all records where [column] contains [value]`
-
----
-
-### Cloud Mode (API Server)
-
-Deploy as a production-ready API service:
-
-1. **Run with default settings (ChromaDB):**
-```bash
+# Run as REST API
 python src/api_server.py
-```
 
-2. **Run with Pinecone (requires API key):**
-```bash
-export PINECONE_API_KEY="your-api-key"
-export VECTOR_STORE_TYPE="pinecone"
-python src/api_server.py
-```
-
-3. **Deploy with Docker:**
-```bash
+# With Docker
 docker build -t spreadsheet-qa .
 docker run -p 8000:8000 spreadsheet-qa
 ```
 
-4. **Deploy on Kubernetes:**
-```bash
-kubectl apply -k k8s/overlays/production/
-```
+See [deployment docs](docs/deployment/) for Kubernetes and cloud options.
 
-See [Kubernetes Deployment Guide](docs/deployment/kubernetes.md) for full cloud deployment instructions.
-
----
-
-## 📝 Project Structure
+### Environment Variables
 
 ```bash
-.
-├── src/
-│   ├── chat_interface.py       # Terminal UI for local use
-│   ├── api_server.py          # FastAPI server for cloud deployment
-│   ├── vector.py              # Vector store abstraction (ChromaDB/Pinecone)
-│   ├── gsheet_loader.py       # Google Sheets integration
-│   ├── pinecone_vector.py     # Pinecone-specific implementation
-│   └── requirements.txt       # Python dependencies
-├── k8s/                       # Kubernetes deployment configs
-├── argocd/                    # ArgoCD GitOps configs
-├── .github/workflows/         # CI/CD pipelines
-├── Dockerfile                 # Container image definition
-├── docs/                      # Documentation
-│   ├── deployment/           # Deployment guides
-│   └── guides/              # User guides
-└── README.md
+# Set default data source
+export CLIENT_DATA_SOURCE="path/to/data.csv"
+
+# Use Pinecone for cloud vector storage (requires API key)
+export VECTOR_STORE_TYPE="pinecone"
+export PINECONE_API_KEY="your-key"
 ```
 
----
+## Documentation
 
-## 📋 Requirements File (`requirements.txt`)
+- [Google Sheets Guide](docs/guides/google-sheets.md) - Detailed setup instructions
+- [Local vs Cloud Mode](docs/guides/local-vs-cloud.md) - Deployment options
+- [Kubernetes Deployment](docs/deployment/kubernetes.md) - Production setup
+- [ArgoCD GitOps](docs/deployment/argocd.md) - Automated deployments
 
-```text
-langchain
-langchain-ollama
-langchain-chroma
-pandas
-colorama
-```
+## How it Works
 
----
+1. **Load** - Reads your CSV or Google Sheets data
+2. **Index** - Creates semantic embeddings of your data using `mxbai-embed-large`
+3. **Search** - Finds relevant records based on your question
+4. **Answer** - Uses `llama3.2` to generate natural language responses
 
-## 📖 Additional Documentation
+All processing happens locally using:
+- **Ollama** for running AI models
+- **ChromaDB** for vector storage
+- **LangChain** for orchestration
 
-### Deployment Guides
-- [Kubernetes Deployment](docs/deployment/kubernetes.md) - Full K8s deployment with GPU support
-- [ArgoCD GitOps](docs/deployment/argocd.md) - Automated deployment with ArgoCD
+## Troubleshooting
 
-### User Guides  
-- [Google Sheets Integration](docs/guides/google-sheets.md) - Detailed Google Sheets setup
-- [Local vs Cloud Mode](docs/guides/local-vs-cloud.md) - Choosing the right deployment
+**"Ollama not found"**
+- Make sure Ollama is installed and running
+- Try: `ollama serve` in another terminal
 
----
+**"Model not found"**  
+- Pull the required models: `ollama pull llama3.2`
 
-## 🔀 Choosing Between Local and Cloud Mode
+**"Access denied" with Google Sheets**
+- Ensure sheet is set to "Anyone with link can view"
 
-### Use Local Mode When:
-- Working with sensitive data that must stay on your machine
-- Personal use or small teams
-- You want the simplest setup with no infrastructure
-- Privacy is paramount
+**Out of memory**
+- Close other applications
+- Try with a smaller dataset first
 
-### Use Cloud Mode When:
-- Building a production application
-- Need to serve multiple users concurrently
-- Want to integrate with other services via API
-- Need scalable vector storage (Pinecone)
-- Deploying to Kubernetes/cloud platforms
+## Contributing
 
----
+Contributions welcome! Feel free to:
+- Open issues for bugs or features
+- Submit pull requests
+- Improve documentation
+- Share your use cases
 
-## 📌 Notes
+## License
 
-* **Local Mode**: Vector data is stored in `./chroma_db_clients/`. Delete to rebuild from scratch.
-* **Cloud Mode**: Can use either ChromaDB (local storage) or Pinecone (cloud storage).
-* The first column or common identifier fields are highlighted in yellow in terminal output.
-* Embeddings exclude terminal color codes for accuracy.
-* Use `--clear` flag to start fresh when switching between different data sources.
-* Use `--force-refresh` to update the vector store with new data while keeping existing embeddings.
-* All features work with ANY spreadsheet structure - the system adapts to your column names.
+MIT License - see [LICENSE](LICENSE) file
 
 ---
 
-## 📞 Support
-
-If you have questions or want to extend this project, feel free to open an issue or contribute via PR. @raj panesar
-
----
+Built with ❤️ by [@raj panesar](https://github.com/rajpanesar)
