@@ -153,20 +153,17 @@ with col2:
     </div>
     """, unsafe_allow_html=True)
 
-# Deployment Mode Selector with better styling
-with st.container():
-    st.markdown('<div class="mode-card">', unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        deployment_mode = st.radio(
-            "🌐 Deployment Mode",
-            ["LOCAL", "CLOUD"],
-            index=0,
-            horizontal=True,
-            help="Cloud mode coming soon! Currently only local mode is available."
-        )
-        st.session_state.deployment_mode = deployment_mode
-    st.markdown('</div>', unsafe_allow_html=True)
+# Deployment Mode Selector
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    deployment_mode = st.radio(
+        "🌐 Deployment Mode",
+        ["LOCAL", "CLOUD"],
+        index=0,
+        horizontal=True,
+        help="Cloud mode coming soon! Currently only local mode is available."
+    )
+    st.session_state.deployment_mode = deployment_mode
 
 # Show elegant warning if cloud mode is selected
 if deployment_mode == "CLOUD":
@@ -333,9 +330,6 @@ with st.sidebar:
 
 # Main chat interface
 if st.session_state.data_loaded:
-    # Chat input at the top
-    prompt = st.chat_input("Ask anything about your data...", key="chat_input")
-    
     # Status indicator
     st.markdown(f"""
     <div style='background-color: #1a1f2e; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #48bb78;'>
@@ -344,74 +338,84 @@ if st.session_state.data_loaded:
     """, unsafe_allow_html=True)
     
     # Chat messages container
-    messages_container = st.container()
-    with messages_container:
+    chat_container = st.container()
+    with chat_container:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.write(message["content"])
     
-    # Process pending question from quick questions or chat input
+    # Process pending question from quick questions ONLY
     if hasattr(st.session_state, 'pending_question') and st.session_state.pending_question:
         prompt = st.session_state.pending_question
         st.session_state.pending_question = None  # Clear pending question
+        
+        # Process the pending question
+        process_question = True
+    else:
+        # Chat input at the bottom
+        prompt = st.chat_input("Ask anything about your data...", key="chat_input")
+        process_question = bool(prompt)
     
     # Process the prompt
-    if prompt:
+    if process_question and prompt:
         # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         
-        with st.chat_message("user"):
-            st.write(prompt)
+        # Display in the chat container
+        with chat_container:
+            with st.chat_message("user"):
+                st.write(prompt)
         
         # Generate response
-        with st.chat_message("assistant"):
-            with st.spinner("Analyzing..."):
-                try:
-                    # Set up the QA chain
-                    llm = ChatOllama(model="llama3.2", temperature=0.7)
-                    
-                    system_prompt = (
-                        "You are a helpful data analyst assistant. "
-                        "Use the retrieved context to answer questions accurately. "
-                        "If you don't know something, say so. "
-                        "Format your responses clearly with bullet points or tables when appropriate. "
-                        "Be concise but thorough."
-                        "\n\nContext:\n{context}"
-                    )
-                    
-                    prompt_template = ChatPromptTemplate.from_messages([
-                        ("system", system_prompt),
-                        ("human", "{input}"),
-                    ])
-                    
-                    question_answer_chain = create_stuff_documents_chain(llm, prompt_template)
-                    rag_chain = create_retrieval_chain(st.session_state.retriever, question_answer_chain)
-                    
-                    # Get response
-                    response = rag_chain.invoke({"input": prompt})
-                    answer = response["answer"]
-                    
-                    # Display response
-                    st.write(answer)
-                    
-                    # Show source documents in a cleaner way
-                    if "context" in response and response["context"]:
-                        with st.expander("📄 View Source Data", expanded=False):
-                            for i, doc in enumerate(response["context"][:3]):  # Limit to 3
-                                st.markdown(f"**Source {i+1}:**")
-                                st.code(doc.page_content, language="text")
-                    
-                    # Add assistant message to history
-                    st.session_state.messages.append({"role": "assistant", "content": answer})
-                    
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
-                    with st.expander("💡 Troubleshooting"):
-                        st.markdown("""
-                        1. **Check Ollama**: Make sure it's running (`ollama serve`)
-                        2. **Check Models**: Ensure you have `llama3.2` and `mxbai-embed-large`
-                        3. **Memory**: Close other applications if running out of memory
-                        """)
+        with chat_container:
+            with st.chat_message("assistant"):
+                with st.spinner("Analyzing..."):
+                    try:
+                        # Set up the QA chain
+                        llm = ChatOllama(model="llama3.2", temperature=0.7)
+                        
+                        system_prompt = (
+                            "You are a helpful data analyst assistant. "
+                            "Use the retrieved context to answer questions accurately. "
+                            "If you don't know something, say so. "
+                            "Format your responses clearly with bullet points or tables when appropriate. "
+                            "Be concise but thorough."
+                            "\n\nContext:\n{context}"
+                        )
+                        
+                        prompt_template = ChatPromptTemplate.from_messages([
+                            ("system", system_prompt),
+                            ("human", "{input}"),
+                        ])
+                        
+                        question_answer_chain = create_stuff_documents_chain(llm, prompt_template)
+                        rag_chain = create_retrieval_chain(st.session_state.retriever, question_answer_chain)
+                        
+                        # Get response
+                        response = rag_chain.invoke({"input": prompt})
+                        answer = response["answer"]
+                        
+                        # Display response
+                        st.write(answer)
+                        
+                        # Show source documents in a cleaner way
+                        if "context" in response and response["context"]:
+                            with st.expander("📄 View Source Data", expanded=False):
+                                for i, doc in enumerate(response["context"][:3]):  # Limit to 3
+                                    st.markdown(f"**Source {i+1}:**")
+                                    st.code(doc.page_content, language="text")
+                        
+                        # Add assistant message to history
+                        st.session_state.messages.append({"role": "assistant", "content": answer})
+                        
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+                        with st.expander("💡 Troubleshooting"):
+                            st.markdown("""
+                            1. **Check Ollama**: Make sure it's running (`ollama serve`)
+                            2. **Check Models**: Ensure you have `llama3.2` and `mxbai-embed-large`
+                            3. **Memory**: Close other applications if running out of memory
+                            """)
 
 else:
     # Welcome screen with better design
