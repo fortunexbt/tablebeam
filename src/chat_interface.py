@@ -16,13 +16,14 @@ model = OllamaLLM(model="llama3.2")
 
 # Define the structured prompt template
 template = """
-You are an intelligent assistant that helps users analyze and understand data from their CSV files or Google Sheets.
+You are an intelligent assistant that helps users analyze and understand data from their CSV files, spreadsheets, or Google Sheets.
 
 Here are relevant records from the dataset: {records}
 
 Based on the information above, provide a helpful and accurate response to the following question: {question}
 
 Note: The data structure and field names may vary depending on the uploaded file. Be adaptive in your responses.
+If the question cannot be answered from the provided data, say so clearly.
 """
 prompt = ChatPromptTemplate.from_template(template)
 chain = prompt | model
@@ -62,16 +63,18 @@ def main() -> None:
     
     if not data_source:
         # Interactive prompt
-        print(f"\n{Fore.GREEN}Welcome to Data Q&A Assistant!{Style.RESET_ALL}")
-        print(f"\n{Fore.YELLOW}Data Source Options:{Style.RESET_ALL}")
-        print("1. Local CSV file (e.g., 'client_tracking.csv')")
+        print(f"\n{Fore.GREEN}Welcome to Spreadsheet Q&A Assistant!{Style.RESET_ALL}")
+        print(f"\n{Fore.YELLOW}This tool can answer questions about ANY spreadsheet or CSV file.{Style.RESET_ALL}")
+        print(f"\n{Fore.CYAN}Data Source Options:{Style.RESET_ALL}")
+        print("1. Local CSV file (e.g., 'data.csv' or '/path/to/file.csv')")
         print("2. Google Sheets URL (e.g., 'https://docs.google.com/spreadsheets/d/...')")
         print("3. Just the Google Sheet ID")
         
-        data_source = input(f"\n{Fore.CYAN}Enter data source (or press Enter for 'client_tracking.csv'): {Style.RESET_ALL}").strip()
+        data_source = input(f"\n{Fore.CYAN}Enter your data source: {Style.RESET_ALL}").strip()
         
         if not data_source:
-            data_source = "client_tracking.csv"
+            print(f"{Fore.RED}No data source provided. Exiting.{Style.RESET_ALL}")
+            sys.exit(1)
         
         # Ask if user wants to clear existing data
         clear_choice = input(f"\n{Fore.YELLOW}Clear existing data before loading? (y/N): {Style.RESET_ALL}").strip().lower()
@@ -91,7 +94,7 @@ def main() -> None:
     while True:
         print("\n\n-------------------------------")
         question: str = input(
-            f"{Fore.CYAN}Ask a question about your data (q to quit): {Style.RESET_ALL}"
+            f"{Fore.CYAN}Ask a question about your data (or 'q' to quit): {Style.RESET_ALL}"
         )
         print("\n\n")
         if question.lower() == "q":
