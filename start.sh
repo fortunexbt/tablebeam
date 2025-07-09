@@ -122,17 +122,27 @@ pip install --upgrade pip --quiet
 TOTAL_PACKAGES=$(grep -c "^[^#]" src/requirements.txt | tr -d ' ')
 print_status "Installing $TOTAL_PACKAGES Python packages..."
 print_info "This typically takes 5-15 minutes on first install"
-print_info "Progress will be shown below:"
 echo
 
-# Install requirements with progress and timeout
-echo "Starting package installation..."
-echo "(If this hangs for more than 2 minutes, press Ctrl+C and try again)"
-echo
-pip install -r src/requirements.txt --no-cache-dir || {
+# Function to show simplified progress
+show_progress() {
+    local current=0
+    while IFS= read -r line; do
+        if [[ "$line" == *"Collecting"* ]]; then
+            ((current++))
+            printf "\r📦 Installing packages: [%-50s] %d/%d" "$(printf '#%.0s' $(seq 1 $((current*50/TOTAL_PACKAGES))))" "$current" "$TOTAL_PACKAGES"
+        elif [[ "$line" == *"ERROR"* ]] || [[ "$line" == *"error"* ]]; then
+            echo -e "\n$line"
+        fi
+    done
+    echo -e "\n"
+}
+
+# Install requirements with simplified output
+pip install -r src/requirements.txt --no-cache-dir 2>&1 | show_progress || {
     print_error "Package installation failed! Trying minimal requirements..."
     echo
-    pip install -r src/requirements-minimal.txt || {
+    pip install -r src/requirements-minimal.txt --no-cache-dir -q || {
         print_error "Minimal installation also failed!"
         print_info "Common fixes:"
         print_info "1. Delete venv/ folder and try again"
