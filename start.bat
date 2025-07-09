@@ -132,20 +132,54 @@ REM Check for required models
 echo [%time%] Checking AI models...
 set MODELS_NEEDED=false
 
+REM Detect available RAM (Windows)
+for /f "tokens=2 delims==" %%i in ('wmic OS get TotalVisibleMemorySize /value ^| find "="') do set /a RAM_KB=%%i
+set /a RAM_GB=%RAM_KB% / 1048576
+
+echo [%time%] Detected %RAM_GB%GB RAM
+
+REM Select appropriate models based on RAM
+if %RAM_GB% LSS 4 (
+    set EMBEDDING_MODEL=all-minilm
+    set LLM_MODEL=phi3:mini
+    echo Limited RAM detected. Using lightweight models.
+) else if %RAM_GB% LSS 8 (
+    set EMBEDDING_MODEL=nomic-embed-text
+    set LLM_MODEL=llama3.2:3b-instruct-q4_K_M
+    echo Moderate RAM detected. Using balanced models.
+) else (
+    set EMBEDDING_MODEL=mxbai-embed-large
+    set LLM_MODEL=mistral:7b-instruct-q4_K_M
+    echo Sufficient RAM detected. Using high-quality models.
+)
+
+REM Check and download embedding model
+ollama list | findstr "%EMBEDDING_MODEL%" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo Embedding model (%EMBEDDING_MODEL%) not found. Downloading...
+    ollama pull %EMBEDDING_MODEL%
+    set MODELS_NEEDED=true
+)
+
+REM Check and download language model
+ollama list | findstr "%LLM_MODEL%" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo Language model (%LLM_MODEL%) not found. Downloading...
+    ollama pull %LLM_MODEL%
+    set MODELS_NEEDED=true
+)
+
+REM Also ensure we have the basic models for compatibility
 ollama list | findstr "llama3.2" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Language model not found. Downloading (~2GB, takes 3-10 minutes)...
-    echo Progress:
-    ollama pull llama3.2
-    set MODELS_NEEDED=true
+    echo Downloading default language model for compatibility...
+    ollama pull llama3.2:latest
 )
 
 ollama list | findstr "mxbai-embed-large" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Embedding model not found. Downloading (~400MB, takes 1-3 minutes)...
-    echo Progress:
+    echo Downloading default embedding model for compatibility...
     ollama pull mxbai-embed-large
-    set MODELS_NEEDED=true
 )
 
 if "%MODELS_NEEDED%"=="true" (
