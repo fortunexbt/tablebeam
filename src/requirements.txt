@@ -101,3 +101,4 @@ websockets==15.0.1
 zipp==3.23.0
 zstandard==0.23.0
 streamlit==1.40.2
+watchdog==6.0.0
