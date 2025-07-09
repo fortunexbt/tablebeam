@@ -151,9 +151,28 @@ All processing happens locally using:
 - Close other applications
 - Try with a smaller dataset first
 
+## What's New 🎉
+
+This project recently merged three major feature branches:
+- **Flexible CSV Support** - Now works with ANY data structure
+- **Cloud Infrastructure** - Production-ready Kubernetes deployment
+- **Generic Spreadsheet Q&A** - Removed client-tracking specific code
+
+See [CHANGELOG.md](CHANGELOG.md) for full details.
+
+## Project Status
+
+This is an actively maintained project that combines:
+- The simplicity of a local CLI tool
+- The scalability of cloud deployment options
+- Support for both CSV files and Google Sheets
+
+Check [TODO.md](TODO.md) for planned features and ways to contribute.
+
 ## Contributing
 
 Contributions welcome! Feel free to:
+- Pick an item from [TODO.md](TODO.md)
 - Open issues for bugs or features
 - Submit pull requests
 - Improve documentation
