@@ -140,6 +140,8 @@ if 'current_data_source' not in st.session_state:
     st.session_state.current_data_source = None
 if 'deployment_mode' not in st.session_state:
     st.session_state.deployment_mode = "LOCAL"
+if 'pending_question' not in st.session_state:
+    st.session_state.pending_question = None
 
 # Header with better styling
 col1, col2, col3 = st.columns([1, 2, 1])
@@ -326,10 +328,14 @@ with st.sidebar:
                 help="Click to ask this question"
             ):
                 st.session_state.messages.append({"role": "user", "content": question})
+                st.session_state.pending_question = question  # Mark question as pending
                 st.rerun()
 
 # Main chat interface
 if st.session_state.data_loaded:
+    # Chat input at the top
+    prompt = st.chat_input("Ask anything about your data...", key="chat_input")
+    
     # Status indicator
     st.markdown(f"""
     <div style='background-color: #1a1f2e; padding: 15px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #48bb78;'>
@@ -344,8 +350,13 @@ if st.session_state.data_loaded:
             with st.chat_message(message["role"]):
                 st.write(message["content"])
     
-    # Chat input
-    if prompt := st.chat_input("Ask anything about your data...", key="chat_input"):
+    # Process pending question from quick questions or chat input
+    if hasattr(st.session_state, 'pending_question') and st.session_state.pending_question:
+        prompt = st.session_state.pending_question
+        st.session_state.pending_question = None  # Clear pending question
+    
+    # Process the prompt
+    if prompt:
         # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         
