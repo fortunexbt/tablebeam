@@ -160,6 +160,8 @@ if 'last_embedding_model' not in st.session_state:
     st.session_state.last_embedding_model = st.session_state.embedding_model
 if 'temp_file_path' not in st.session_state:
     st.session_state.temp_file_path = None
+if 'force_reload' not in st.session_state:
+    st.session_state.force_reload = False
 
 # Header
 st.markdown("""
@@ -168,6 +170,34 @@ st.markdown("""
     <p style='color: #a0aec0; font-size: 18px;'>Ask questions about your data in natural language</p>
 </div>
 """, unsafe_allow_html=True)
+
+# Handle force reload for embedding model changes
+if st.session_state.get('force_reload', False) and st.session_state.data_loaded:
+    st.session_state.force_reload = False
+    # Trigger reload using the stored data source
+    if st.session_state.current_data_source:
+        if st.session_state.current_data_source.endswith('.csv'):
+            # It's a file, use the temp file path
+            data_path = st.session_state.temp_file_path
+        else:
+            # It's a URL
+            data_path = st.session_state.current_data_source
+        
+        if data_path:
+            with st.spinner("🔄 Reloading data with new embedding model..."):
+                try:
+                    get_imports()
+                    df = load_client_data(data_path)
+                    documents = create_documents(df)
+                    retriever = get_retriever(data_path, embedding_model=st.session_state.embedding_model, force_refresh=True)
+                    
+                    st.session_state.retriever = retriever
+                    st.session_state.messages = []
+                    st.session_state.last_embedding_model = st.session_state.embedding_model
+                    
+                    st.success(f"✅ Data reloaded with {st.session_state.embedding_model}")
+                except Exception as e:
+                    st.error(f"❌ Error reloading data: {str(e)}")
 
 # Sidebar
 with st.sidebar:
@@ -225,80 +255,93 @@ with st.sidebar:
         uploaded_file = st.file_uploader(
             "Drop your CSV here",
             type=['csv'],
-            help="Supports any CSV format"
+            help="Supports any CSV format - will load automatically!"
         )
         
         if uploaded_file is not None:
             try:
-                # Debug info
-                file_size = len(uploaded_file.getvalue())
-                st.info(f"📁 Uploaded file: {uploaded_file.name} ({file_size} bytes)")
-                
+                # Save file
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.csv', mode='wb') as tmp_file:
                     tmp_file.write(uploaded_file.getvalue())
-                    tmp_file.flush()  # Ensure all data is written
+                    tmp_file.flush()
                     data_path = tmp_file.name
+                    
+                # Check if this is a new file or if models changed
+                if (st.session_state.current_data_source != uploaded_file.name or 
+                    not st.session_state.data_loaded or
+                    ('last_embedding_model' in st.session_state and 
+                     st.session_state.last_embedding_model != st.session_state.embedding_model)):
+                    
                     st.session_state.current_data_source = uploaded_file.name
-                    st.session_state.temp_file_path = data_path  # Store in session state
-                    st.success(f"✅ File saved to: {data_path}")
+                    st.session_state.temp_file_path = data_path
+                    # Auto-load the data
+                    with st.spinner("🔄 Loading your data automatically..."):
+                        try:
+                            get_imports()
+                            df = load_client_data(data_path)
+                            documents = create_documents(df)
+                            retriever = get_retriever(data_path, embedding_model=st.session_state.embedding_model)
+                            
+                            st.session_state.retriever = retriever
+                            st.session_state.data_loaded = True
+                            st.session_state.messages = []
+                            st.session_state.last_embedding_model = st.session_state.embedding_model
+                            
+                            st.success(f"✅ Loaded {uploaded_file.name}: {len(df)} rows, {len(df.columns)} columns")
+                        except Exception as e:
+                            st.error(f"❌ Error loading data: {str(e)}")
+                            data_path = None
+                            
             except Exception as e:
-                st.error(f"❌ Error processing uploaded file: {str(e)}")
+                st.error(f"❌ Error processing file: {str(e)}")
                 data_path = None
     
     elif data_source == "🔗 Google Sheets URL":
         sheet_url = st.text_input(
-            "Google Sheets URL",
+            "Paste Google Sheets URL",
             placeholder="https://docs.google.com/spreadsheets/d/...",
-            help="Sheet must be publicly viewable"
+            help="Sheet must be publicly viewable - will load automatically!",
+            key="sheet_url_input"
         )
         
-        if sheet_url:
+        if sheet_url and sheet_url.startswith("https://docs.google.com/spreadsheets/"):
             data_path = sheet_url
-            st.session_state.current_data_source = "Google Sheets"
-    
-    # Load data button
-    if data_path:
-        # Check if embedding model changed
-        embedding_model_changed = ('last_embedding_model' in st.session_state and 
-                                   st.session_state.last_embedding_model != st.session_state.embedding_model)
-        
-        if embedding_model_changed and st.session_state.data_loaded:
-            st.warning("⚠️ Embedding model changed. Please reload your data to apply the new model.")
-        
-        if st.button("🚀 Load Data", type="primary", use_container_width=True):
-            with st.spinner("Processing your data..."):
-                try:
-                    get_imports()  # Load heavy imports only when needed
-                    
-                    # Step 1: Load data
-                    with st.spinner("Loading CSV data..."):
-                        df = load_client_data(data_path)
-                        st.info(f"📊 Loaded {len(df)} rows, {len(df.columns)} columns")
-                    
-                    # Step 2: Create documents
-                    with st.spinner("Creating searchable documents..."):
+            
+            # Check if this is a new URL or if models changed
+            if (st.session_state.current_data_source != sheet_url or 
+                not st.session_state.data_loaded or
+                ('last_embedding_model' in st.session_state and 
+                 st.session_state.last_embedding_model != st.session_state.embedding_model)):
+                
+                st.session_state.current_data_source = sheet_url
+                # Auto-load the data
+                with st.spinner("🔄 Loading Google Sheets data..."):
+                    try:
+                        get_imports()
+                        df = load_client_data(sheet_url)
                         documents = create_documents(df)
-                        st.info(f"📄 Created {len(documents)} documents")
-                    
-                    # Step 3: Create retriever
-                    with st.spinner("Building vector index..."):
-                        retriever = get_retriever(data_path, embedding_model=st.session_state.embedding_model)
-                    
-                    st.session_state.retriever = retriever
-                    st.session_state.data_loaded = True
-                    st.session_state.messages = []
-                    st.session_state.last_embedding_model = st.session_state.embedding_model
-                    
-                    st.success(f"✅ Successfully loaded {len(df)} rows, {len(df.columns)} columns")
-                    
-                    with st.expander("📊 Data Preview", expanded=False):
-                        st.dataframe(df.head(10), use_container_width=True, hide_index=True)
-                    
-                except Exception as e:
-                    st.error(f"❌ Error loading data: {str(e)}")
-                    import traceback
-                    with st.expander("🔍 Error Details"):
-                        st.code(traceback.format_exc())
+                        retriever = get_retriever(sheet_url, embedding_model=st.session_state.embedding_model)
+                        
+                        st.session_state.retriever = retriever
+                        st.session_state.data_loaded = True
+                        st.session_state.messages = []
+                        st.session_state.last_embedding_model = st.session_state.embedding_model
+                        
+                        st.success(f"✅ Loaded Google Sheets: {len(df)} rows, {len(df.columns)} columns")
+                    except Exception as e:
+                        st.error(f"❌ Error loading data: {str(e)}")
+                        data_path = None
+        elif sheet_url and not sheet_url.startswith("https://docs.google.com/spreadsheets/"):
+            st.warning("⚠️ Please enter a valid Google Sheets URL")
+    
+    # Show data preview if loaded
+    if st.session_state.data_loaded and data_path:
+        with st.expander("📊 Data Preview", expanded=False):
+            try:
+                df_preview = load_client_data(data_path if not data_source.startswith("📤") else st.session_state.temp_file_path)
+                st.dataframe(df_preview.head(10), use_container_width=True, hide_index=True)
+            except:
+                st.info("Preview not available")
 
 # Main chat interface
 if st.session_state.data_loaded:
