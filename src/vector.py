@@ -244,10 +244,29 @@ def setup_chroma_store(documents: List[Document],
 
     except Exception as e:
         logger.error(f"Error setting up Chroma store: {e}")
+        # Check if it's a permission error
+        if "readonly database" in str(e).lower() or "permission" in str(e).lower():
+            print(f"{Fore.RED}Database permission error detected.{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}This usually happens when the database was created by a different process.{Style.RESET_ALL}")
+        
         # If any error, try to recover by clearing and recreating
         if os.path.exists(db_location):
-            print(f"{Fore.YELLOW}Error detected, clearing and recreating vector store...{Style.RESET_ALL}")
-            shutil.rmtree(db_location)
+            print(f"{Fore.YELLOW}Clearing and recreating vector store...{Style.RESET_ALL}")
+            try:
+                shutil.rmtree(db_location)
+            except PermissionError:
+                # Try to fix permissions first
+                import stat
+                for root, dirs, files in os.walk(db_location):
+                    for d in dirs:
+                        os.chmod(os.path.join(root, d), stat.S_IRWXU)
+                    for f in files:
+                        os.chmod(os.path.join(root, f), stat.S_IRUSR | stat.S_IWUSR)
+                shutil.rmtree(db_location)
+        
+        # Wait a moment to ensure cleanup is complete
+        import time
+        time.sleep(0.5)
         
         vector_store = Chroma(
             collection_name=collection_name,

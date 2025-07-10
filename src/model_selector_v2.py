@@ -48,15 +48,48 @@ class HardwareDetector:
             if "Apple" not in chip_string:
                 return None
             
-            # Extract chip model
+            # Extract chip model - check M4 series first (newest)
             chip_model = "Unknown Apple Silicon"
-            for model in ["M3 Max", "M3 Pro", "M3", "M2 Ultra", "M2 Max", "M2 Pro", "M2", 
-                         "M1 Ultra", "M1 Max", "M1 Pro", "M1"]:
-                if model in chip_string:
-                    chip_model = model
+            
+            # Handle different formats - sometimes it's "Apple M4", sometimes just "M4"
+            # Also handle variants like "M4 Pro", "M4 Max"
+            chip_patterns = [
+                ("Apple M4 Max", "M4 Max"),
+                ("Apple M4 Pro", "M4 Pro"),
+                ("Apple M4", "M4"),
+                ("M4 Max", "M4 Max"),
+                ("M4 Pro", "M4 Pro"),
+                ("M4", "M4"),
+                ("Apple M3 Max", "M3 Max"),
+                ("Apple M3 Pro", "M3 Pro"),
+                ("Apple M3", "M3"),
+                ("M3 Max", "M3 Max"),
+                ("M3 Pro", "M3 Pro"),
+                ("M3", "M3"),
+                ("Apple M2 Ultra", "M2 Ultra"),
+                ("Apple M2 Max", "M2 Max"),
+                ("Apple M2 Pro", "M2 Pro"),
+                ("Apple M2", "M2"),
+                ("M2 Ultra", "M2 Ultra"),
+                ("M2 Max", "M2 Max"),
+                ("M2 Pro", "M2 Pro"),
+                ("M2", "M2"),
+                ("Apple M1 Ultra", "M1 Ultra"),
+                ("Apple M1 Max", "M1 Max"),
+                ("Apple M1 Pro", "M1 Pro"),
+                ("Apple M1", "M1"),
+                ("M1 Ultra", "M1 Ultra"),
+                ("M1 Max", "M1 Max"),
+                ("M1 Pro", "M1 Pro"),
+                ("M1", "M1"),
+            ]
+            
+            for pattern, model_name in chip_patterns:
+                if pattern in chip_string:
+                    chip_model = model_name
                     break
             
-            # Chip specifications
+            # Chip specifications (including M4 series)
             chip_specs = {
                 "M1": {"gpu_cores": 8, "neural_cores": 16, "max_ram": 16},
                 "M1 Pro": {"gpu_cores": 16, "neural_cores": 16, "max_ram": 32},
@@ -69,6 +102,10 @@ class HardwareDetector:
                 "M3": {"gpu_cores": 10, "neural_cores": 16, "max_ram": 24},
                 "M3 Pro": {"gpu_cores": 18, "neural_cores": 16, "max_ram": 36},
                 "M3 Max": {"gpu_cores": 40, "neural_cores": 16, "max_ram": 128},
+                # M4 series specifications
+                "M4": {"gpu_cores": 10, "neural_cores": 16, "max_ram": 32},
+                "M4 Pro": {"gpu_cores": 20, "neural_cores": 16, "max_ram": 64},
+                "M4 Max": {"gpu_cores": 40, "neural_cores": 16, "max_ram": 128},
             }
             
             specs = chip_specs.get(chip_model, {"gpu_cores": 8, "neural_cores": 16, "max_ram": 16})
@@ -304,7 +341,10 @@ class ModelRecommender:
             notes.append("✅ Metal GPU acceleration is automatically enabled for all models")
             notes.append(f"✅ Unified memory architecture allows efficient {self.hardware['total_ram_gb']}GB usage")
             
-            if self.hardware.get("chip_model", "").startswith("M3"):
+            if self.hardware.get("chip_model", "").startswith("M4"):
+                notes.append("✅ M4's next-gen Neural Engine provides industry-leading inference speeds")
+                notes.append("✅ Enhanced GPU architecture with hardware ray tracing for ML workloads")
+            elif self.hardware.get("chip_model", "").startswith("M3"):
                 notes.append("✅ M3's enhanced Neural Engine provides faster inference")
         
         if self.hardware["available_ram_gb"] < 8:
@@ -356,6 +396,13 @@ def render_model_settings_ui(container):
             col2.metric("Chip", detector.info.get("chip_model", "Apple Silicon"))
             col2.metric("GPU Cores", detector.info.get("gpu_cores", "Unknown"))
             col2.metric("Neural Cores", detector.info.get("neural_cores", "Unknown"))
+            
+            # Check MLX availability
+            try:
+                import mlx
+                col2.success("✅ MLX Available")
+            except ImportError:
+                col2.info("💡 MLX not installed")
         elif detector.info.get("has_discrete_gpu"):
             col2.metric("GPU", detector.info.get("gpu_name", "Unknown"))
             col2.metric("VRAM", f"{detector.info.get('vram_gb', '?')}GB")
@@ -387,6 +434,9 @@ def render_model_settings_ui(container):
     
     # Model selection UI
     container.markdown("### ⚙️ Model Configuration")
+    
+    # Help text
+    container.info("💡 Models marked with ✅ are installed. Select ⬇️ models to download them.")
     
     # Current selections
     current_embedding = st.session_state.get("embedding_model", emb_rec["name"])
@@ -524,21 +574,34 @@ def render_model_settings_ui(container):
         embedding_changed = (selected_embedding != st.session_state.get("embedding_model") and 
                            st.session_state.get("data_loaded", False))
         
-        button_label = "💾 Apply Configuration"
-        if embedding_changed:
-            button_label = "⚠️ Apply (Will Need Data Reload)"
-            container.warning("⚠️ Changing embedding model requires reloading your data")
+        # Check if anything changed
+        config_changed = (selected_embedding != st.session_state.get("embedding_model") or
+                         selected_llm != st.session_state.get("llm_model"))
         
-        if container.button(button_label, type="primary", use_container_width=True):
-            st.session_state.embedding_model = selected_embedding
-            st.session_state.llm_model = selected_llm
-            container.success("✅ Model configuration updated!")
+        if config_changed:
+            button_label = "🔄 Apply & Reload Data" if embedding_changed else "💾 Apply Changes"
+            button_type = "primary"
             
             if embedding_changed:
-                container.info("ℹ️ Please reload your data to use the new embedding model")
+                container.warning("⚠️ Embedding model change detected - data will be automatically reloaded")
+        else:
+            button_label = "✅ No Changes"
+            button_type = "secondary"
+        
+        if container.button(button_label, type=button_type, use_container_width=True, disabled=not config_changed):
+            old_embedding = st.session_state.get("embedding_model")
+            st.session_state.embedding_model = selected_embedding
+            st.session_state.llm_model = selected_llm
+            
+            if embedding_changed and st.session_state.get("data_loaded", False):
+                # Force data reload
+                st.session_state.force_reload = True
+                container.success("✅ Models updated! Reloading data with new embedding model...")
+            else:
+                container.success("✅ Model configuration updated!")
             
             import time
-            time.sleep(1)
+            time.sleep(0.5)
             st.rerun()
     
     with col2:

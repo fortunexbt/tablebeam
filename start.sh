@@ -180,9 +180,16 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     CHIP_STRING=$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo "")
     if echo "$CHIP_STRING" | grep -q "Apple"; then
         IS_APPLE_SILICON=true
-        # Extract chip model
-        for chip in "M3 Max" "M3 Pro" "M3" "M2 Ultra" "M2 Max" "M2 Pro" "M2" "M1 Ultra" "M1 Max" "M1 Pro" "M1"; do
-            if echo "$CHIP_STRING" | grep -q "$chip"; then
+        # Extract chip model - check M4 first (newest)
+        # Handle both "Apple M4" and "M4" formats
+        APPLE_CHIP=""
+        
+        # First check for exact matches with "Apple " prefix
+        for chip in "M4 Max" "M4 Pro" "M4" "M3 Max" "M3 Pro" "M3" "M2 Ultra" "M2 Max" "M2 Pro" "M2" "M1 Ultra" "M1 Max" "M1 Pro" "M1"; do
+            if echo "$CHIP_STRING" | grep -q "Apple $chip"; then
+                APPLE_CHIP="$chip"
+                break
+            elif echo "$CHIP_STRING" | grep -q "^$chip"; then
                 APPLE_CHIP="$chip"
                 break
             fi
@@ -194,8 +201,16 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
         if python3 -c "import mlx" 2>/dev/null; then
             print_success "MLX is installed - additional optimization available"
         else
-            print_info "💡 For even better performance, consider installing MLX:"
-            print_info "   pip install mlx-lm"
+            print_info "💡 MLX can provide even better performance on Apple Silicon"
+            echo -n "Would you like to install MLX for optimized performance? (y/N): "
+            read -r INSTALL_MLX
+            if [[ "$INSTALL_MLX" =~ ^[Yy]$ ]]; then
+                print_status "Installing MLX-LM..."
+                pip install mlx-lm --quiet
+                print_success "MLX-LM installed successfully"
+            else
+                print_info "Skipping MLX installation. You can install it later with: pip install mlx-lm"
+            fi
         fi
     fi
 fi
