@@ -158,6 +158,8 @@ if 'process_last_message' not in st.session_state:
     st.session_state.process_last_message = False
 if 'last_embedding_model' not in st.session_state:
     st.session_state.last_embedding_model = st.session_state.embedding_model
+if 'temp_file_path' not in st.session_state:
+    st.session_state.temp_file_path = None
 
 # Header
 st.markdown("""
@@ -227,10 +229,21 @@ with st.sidebar:
         )
         
         if uploaded_file is not None:
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.csv') as tmp_file:
-                tmp_file.write(uploaded_file.getvalue())
-                data_path = tmp_file.name
-                st.session_state.current_data_source = uploaded_file.name
+            try:
+                # Debug info
+                file_size = len(uploaded_file.getvalue())
+                st.info(f"📁 Uploaded file: {uploaded_file.name} ({file_size} bytes)")
+                
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.csv', mode='wb') as tmp_file:
+                    tmp_file.write(uploaded_file.getvalue())
+                    tmp_file.flush()  # Ensure all data is written
+                    data_path = tmp_file.name
+                    st.session_state.current_data_source = uploaded_file.name
+                    st.session_state.temp_file_path = data_path  # Store in session state
+                    st.success(f"✅ File saved to: {data_path}")
+            except Exception as e:
+                st.error(f"❌ Error processing uploaded file: {str(e)}")
+                data_path = None
     
     elif data_source == "🔗 Google Sheets URL":
         sheet_url = st.text_input(
@@ -256,22 +269,36 @@ with st.sidebar:
             with st.spinner("Processing your data..."):
                 try:
                     get_imports()  # Load heavy imports only when needed
-                    df = load_client_data(data_path)
-                    documents = create_documents(df)
-                    retriever = get_retriever(data_path, embedding_model=st.session_state.embedding_model)
+                    
+                    # Step 1: Load data
+                    with st.spinner("Loading CSV data..."):
+                        df = load_client_data(data_path)
+                        st.info(f"📊 Loaded {len(df)} rows, {len(df.columns)} columns")
+                    
+                    # Step 2: Create documents
+                    with st.spinner("Creating searchable documents..."):
+                        documents = create_documents(df)
+                        st.info(f"📄 Created {len(documents)} documents")
+                    
+                    # Step 3: Create retriever
+                    with st.spinner("Building vector index..."):
+                        retriever = get_retriever(data_path, embedding_model=st.session_state.embedding_model)
                     
                     st.session_state.retriever = retriever
                     st.session_state.data_loaded = True
                     st.session_state.messages = []
                     st.session_state.last_embedding_model = st.session_state.embedding_model
                     
-                    st.success(f"✅ Loaded {len(df)} rows, {len(df.columns)} columns")
+                    st.success(f"✅ Successfully loaded {len(df)} rows, {len(df.columns)} columns")
                     
                     with st.expander("📊 Data Preview", expanded=False):
                         st.dataframe(df.head(10), use_container_width=True, hide_index=True)
                     
                 except Exception as e:
-                    st.error(f"❌ Error: {str(e)}")
+                    st.error(f"❌ Error loading data: {str(e)}")
+                    import traceback
+                    with st.expander("🔍 Error Details"):
+                        st.code(traceback.format_exc())
 
 # Main chat interface
 if st.session_state.data_loaded:
