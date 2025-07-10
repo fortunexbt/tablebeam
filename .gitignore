@@ -213,16 +213,15 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# Local Claude settings (keep this tracked for Claude AI assistance)
-!.claude/
-!.claude/**
-
 # Session continuation files
 *-this-session-is-being-continued-from-*.txt
 
+# Claude AI assistant files (local only, not for GitHub)
+.claude/
+CLAUDE.md
+
 # Keep essential documentation
 !README.md
-!CLAUDE.md
 !CHANGELOG.md
 
 # Keep essential scripts
