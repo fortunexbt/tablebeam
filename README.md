@@ -1,137 +1,83 @@
 # 📊 Spreadsheet Q&A Assistant
 
-Ask questions about your spreadsheet data in plain English. Get instant AI-powered answers. **100% private** - runs entirely on your computer.
+Ask questions about your data in plain English. Get instant AI-powered answers.  
+**100% private** - runs entirely on your computer.
 
-![Status](https://img.shields.io/badge/Status-Ready-green)
-![License](https://img.shields.io/badge/License-MIT-blue)
+## 🚀 Quick Start
 
-## 🚀 Quick Start (2 minutes)
-
-### macOS/Linux:
 ```bash
 git clone https://github.com/smokingfive/client-tracker-assistant.git
 cd client-tracker-assistant
-./start.sh
+./start.sh        # macOS/Linux
+start.bat         # Windows
 ```
 
-### Windows:
-```cmd
-git clone https://github.com/smokingfive/client-tracker-assistant.git
-cd client-tracker-assistant
-start.bat
-```
+The installer handles everything automatically. Just run and go! ✨
 
-**That's it!** The app will:
-- ✅ Check all requirements
-- ✅ Install everything needed
-- ✅ Download AI models (first time only)
-- ✅ Open in your browser automatically
+## 💬 What Can You Ask?
 
-## 🎯 What You Can Do
+Upload any CSV or paste a Google Sheets URL, then ask:
+- *"What are the main trends in this data?"*
+- *"Show me the top 10 entries by revenue"*
+- *"Which categories have the most items?"*
+- *"Summarize the key insights"*
+- *"Find all records from last month"*
 
-Upload any CSV or connect Google Sheets, then ask questions like:
-- "What are the main trends in this data?"
-- "Show me the top 10 entries by revenue"
-- "Which categories have the most items?"
-- "Summarize the key insights"
-- "Find all records from last month"
+## ✨ Features
 
-### 🆕 New Features (v2.3)
+### Smart & Simple
+- **Auto-loads data** - Just upload or paste URL
+- **Natural language** - No SQL or coding required  
+- **Quick questions** - One-click common queries
+- **Dark theme** - Professional, easy on the eyes
 
-**Intelligent Model Selection**
-- 🧠 Automatic hardware detection (RAM, CPU, GPU)
-- 🍎 Apple Silicon optimization (M-chip detection)
-- 📊 Smart model recommendations based on your system
-- ⬇️ Live download progress with real-time output
+### Powerful AI
+- **Hardware detection** - Optimizes for your system
+- **Apple Silicon ready** - M1/M2/M3/M4 optimization
+- **Smart recommendations** - Best models for your RAM
+- **Offline capable** - Everything runs locally
 
-**Enhanced UI/UX**
-- ⚙️ Model Settings panel with hardware details
-- ✅ Visual indicators for installed vs available models
-- 🗂️ Models organized by size categories
-- 🚀 One-click quick questions that work instantly
+## 💻 System Requirements
 
-## 📸 Screenshots
+| Component | Minimum | Recommended |
+|-----------|---------|-------------|
+| RAM | 4GB | 8GB+ |
+| Storage | 10GB | 20GB |
+| Python | 3.9+ | 3.11+ |
+| OS | Windows/Mac/Linux | Any |
 
-### Beautiful Dark Theme UI
-The app features a modern, professional interface:
-- 🌙 Dark theme that's easy on the eyes
-- 📊 Clean data visualization
-- 💬 Chat-style interaction
-- 🚀 LOCAL/CLOUD mode toggle (cloud coming soon)
+The installer checks and guides you through everything needed.
 
-### Smart Features
-- **Drag & Drop**: Just drop your CSV file
-- **Google Sheets**: Paste URL and connect instantly  
-- **Natural Language**: No SQL or coding required
-- **Privacy First**: Your data never leaves your computer
+## 🛠️ Troubleshooting
 
-## 🛠 Requirements
-
-The start script checks and helps install everything:
-- **Python 3.9+** (guides you if missing)
-- **Ollama** (guides you if missing)
-- **10GB disk space** (for AI models)
-- **4GB RAM minimum** (8GB+ recommended)
-
-### Recommended Models by RAM:
-- **4GB RAM**: all-minilm + phi3:mini (lightweight)
-- **8GB RAM**: nomic-embed-text + llama3.2:3b (balanced)
-- **16GB+ RAM**: mxbai-embed-large + mistral:7b (best quality)
-
-## 🆘 Troubleshooting
-
-### "Python not found"
-- **Windows**: Download from [python.org](https://python.org) - CHECK "Add to PATH"!
-- **Mac**: Usually pre-installed, or use `brew install python3`
-- **Linux**: Use `sudo apt install python3` or equivalent
+<details>
+<summary><strong>Common Issues</strong></summary>
 
 ### "Ollama not found"
-The script will guide you, but:
-- **Mac**: [Download Ollama for Mac](https://ollama.com/download/mac)
-- **Windows**: [Download Ollama for Windows](https://ollama.com/download/windows)
-- **Linux**: Run `curl -fsSL https://ollama.com/install.sh | sh`
+- **Mac**: Download from [ollama.com](https://ollama.com/download/mac)
+- **Windows**: Download from [ollama.com](https://ollama.com/download/windows)  
+- **Linux**: `curl -fsSL https://ollama.com/install.sh | sh`
 
 ### "Port 8501 in use"
-Another app is using the port. Either:
-- Close other Streamlit apps, OR
-- Edit `start.sh` and change `8501` to `8502`
+Another app is using the port. Close other Streamlit apps or change the port in start.sh
 
-### Still having issues?
-1. Run `./check_install.sh` to diagnose the problem
-2. Make sure you're in the project folder
-3. Try deleting `venv/` folder and run again
-4. Check you have 10GB free disk space
+### Google Sheets not loading
+Make sure your sheet is set to "Anyone with link can view"
 
-## 🔮 Roadmap
+### Out of memory
+Use the Model Settings panel to select smaller models
+</details>
 
-### Now (Local Mode)
-- ✅ CSV file upload
-- ✅ Google Sheets connection
-- ✅ Natural language Q&A
-- ✅ 100% private & local
+## 🚀 Coming Soon
 
-### Coming Soon (Cloud Mode)
-- ⚡ 10x faster with GPU processing
-- 👥 Team collaboration
-- 💾 Save and share insights
-- 🔌 API for integrations
+- ⚡ Cloud mode with GPU acceleration
+- 👥 Team collaboration features
 - 📱 Mobile app
-
-## 💡 Pro Tips
-
-1. **First time?** The AI model download takes 5-10 minutes (one time only)
-2. **Google Sheets**: Must be "viewable by anyone with link"
-3. **Large files**: Start with a smaller sample first
-4. **Best results**: Ask specific questions about your data
-
-## 🤝 Contributing
-
-We welcome contributions! Feel free to open issues or submit pull requests.
+- 🔌 REST API
 
 ## 📄 License
 
-MIT License - use freely for any purpose.
+MIT License - free for any use.
 
 ---
-
-**Built with ❤️ using Streamlit, LangChain, and Ollama**
+**Built with Streamlit, LangChain, and Ollama**
