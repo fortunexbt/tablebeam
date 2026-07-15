@@ -11,12 +11,12 @@ import os
 import re
 from dataclasses import dataclass
 from io import BytesIO
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 import pandas as pd
 import requests
 
-from data_pipeline import DataProfile, load_data, normalize_dataframe, profile_dataframe
+from data_pipeline import DataProfile, load_data, normalize_dataframe, profile_dataframe, profile_for_prompt
 
 
 TOKEN_RE = re.compile(r"[\w'-]+", re.UNICODE)
@@ -70,6 +70,27 @@ class LocalTable:
     def _format_row(self, index: Any, row: pd.Series) -> str:
         values = [f"{column}: {row[column]}" for column in self.dataframe.columns if pd.notna(row[column])]
         return f"row_number={int(index) + 1}; " + "; ".join(values)
+
+    def numeric_summary(self) -> pd.DataFrame:
+        """Return deterministic aggregate facts for numeric columns."""
+
+        numeric = self.dataframe.select_dtypes(include="number")
+        if numeric.empty:
+            return pd.DataFrame(columns=["column", "count", "mean", "median", "min", "max"])
+        summary = numeric.agg(["count", "mean", "median", "min", "max"]).T.reset_index()
+        summary.columns = ["column", "count", "mean", "median", "min", "max"]
+        for column in ["mean", "median", "min", "max"]:
+            summary[column] = summary[column].round(2)
+        return summary
+
+    def prompt_profile(self) -> str:
+        """Format deterministic table facts for the local model."""
+
+        facts = profile_for_prompt(self.profile)
+        summary = self.numeric_summary()
+        if not summary.empty:
+            facts += "\nNumeric summary:\n" + summary.head(20).to_string(index=False)
+        return facts
 
     def search(self, question: str, limit: int = 8) -> list[RowSource]:
         """Return the most relevant rows without any external service."""
@@ -141,13 +162,11 @@ class OpenAICompatibleClient:
         system = (
             "You are a careful spreadsheet analyst. Answer only from the supplied rows and profile. "
             "Do not invent values. If the sample does not support the answer, say so. "
-            "Cite factual claims with the exact labels [Source N]. Keep the answer concise."
+            "Cite row-level claims with [Source N] and aggregate profile claims with [Profile]. "
+            "Keep the answer concise and say when an exact calculation is not supported."
         )
         user = (
-            f"Dataset: {profile.row_count:,} rows, {profile.column_count} columns.\n"
-            f"Columns: {', '.join(profile.columns)}\n"
-            f"Numeric columns: {', '.join(profile.numeric_columns) or 'none'}\n"
-            f"Missing values: {profile.missing_values}\n"
+            f"Profile facts [Profile]:\n{table.prompt_profile()}\n"
             f"Retrieved rows:\n{context}\n\nQuestion: {question.strip()}"
         )
         model = self.model
