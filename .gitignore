@@ -1,80 +1,8 @@
 # Python
 __pycache__/
 *.py[cod]
-*.class
+*$py.class
 *.so
-.Python
-env/
-venv/
-ENV/
-.venv
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Vector stores
-chroma_db_clients/
-**/chroma_db_*/
-pinecone_cache/
-*.faiss
-*.pkl
-
-# Environment variables
-.env
-.env.*
-!.env.example
-
-# Logs
-*.log
-logs/
-*.log.*
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Project specific
-CLAUDE.md
-claude_api_key.txt
-api_keys/
-credentials/
-
-# Temporary files
-tmp/
-temp/
-*.tmp
-*.temp
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Model files
-models/
-*.gguf
-*.bin
-
-# Data files (if sensitive)
-# Uncomment if CSV files contain sensitive data
-# *.csv
-# data/
-
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
-
-# Coverage reports
-htmlcov/
-.coverage
-.coverage.*
-coverage.xml
-*.cover
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -88,6 +16,224 @@ parts/
 sdist/
 var/
 wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
+
+# Virtual Environments
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Local runtime files
+*.db
+*.sqlite
+*.sqlite3
+*.faiss
+*.pkl
+
+# Environment variables
+.env
+.env.*
+!.env.example
+claude_api_key.txt
+api_keys/
+credentials/
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# IDE and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Project specific - test and temporary files
+test_*.py
+test_*.csv
+*_test.py
+*_test.csv
+test_data.csv
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+
+# Development/debugging files
+QUICK_FIX.md
+TODO.md
+TEST_GUIDE.md
+MODEL_UI_TEST.md
+MODEL_FEATURES.md
+test_fixes.py
+test_model_ui.py
+test_models.py
+quick_test.sh
+check_install.sh
+
+# Old/backup files
+*_old.py
+*_improved.py
+app_old.py
+app_improved.py
+migrate_*.py
+
+# Model files
+models/
+*.gguf
+*.bin
+*.pth
+*.h5
+*.safetensors
+
+# Data files (comment out if you want to track sample data)
+*.csv
+!sample_data.csv
+data/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Coverage and testing
+!tests/
+!tests/**/*.py
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Distribution / packaging
+.Python
+develop-eggs/
+downloads/
+.installed.cfg
+MANIFEST
+
+# Documentation build files
+docs/_build/
+docs/_static/
+docs/_templates/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# Session continuation files
+*-this-session-is-being-continued-from-*.txt
+
+# Claude AI assistant files (local only, not for GitHub)
+.claude/
+CLAUDE.md
+
+# Keep essential documentation
+!README.md
+!CHANGELOG.md
+
+# Keep essential scripts
+!start.sh
+!start.bat
+!src/requirements.txt
+!src/requirements-minimal.txt
+
+# Keep source code
+!src/*.py
+# But exclude test/old/migration files
+src/test_*.py
+src/*_test.py
+src/*_old.py
+src/*_improved.py
+src/migrate_*.py
