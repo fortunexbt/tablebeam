@@ -1,83 +1,97 @@
-# 📊 Spreadsheet Q&A Assistant
+# Spreadsheet Q&A Assistant
 
-Ask questions about your data in plain English. Get instant AI-powered answers.  
-**100% private** - runs entirely on your computer.
+A local-first Streamlit app for exploring CSV files and public Google Sheets with a local Ollama model. It profiles the data before indexing it, validates the input boundary, and shows the retrieved source rows alongside every generated answer.
 
-## 🚀 Quick Start
+## Quick start
+
+Prerequisites: Python 3.10+ and [Ollama](https://ollama.com/download) installed and available on the machine.
 
 ```bash
 git clone https://github.com/smokingfive/client-tracker-assistant.git
 cd client-tracker-assistant
-./start.sh        # macOS/Linux
-start.bat         # Windows
+./start.sh --demo
 ```
 
-The installer handles everything automatically. Just run and go! ✨
+The launcher creates `.venv`, installs the pinned Python dependencies only when they are missing, starts a local Ollama process when needed, pulls `mxbai-embed-large` and `llama3.2` if they are missing, and opens the app at <http://localhost:8501>. Use `./start.sh --skip-model-pull` to launch the UI without downloading models.
 
-## 💬 What Can You Ask?
+Useful options:
 
-Upload any CSV or paste a Google Sheets URL, then ask:
-- *"What are the main trends in this data?"*
-- *"Show me the top 10 entries by revenue"*
-- *"Which categories have the most items?"*
-- *"Summarize the key insights"*
-- *"Find all records from last month"*
+```bash
+./start.sh --help
+./start.sh --skip-install --skip-model-pull
+```
 
-## ✨ Features
+Windows users can use `start.bat`, then open the shown local URL.
 
-### Smart & Simple
-- **Auto-loads data** - Just upload or paste URL
-- **Natural language** - No SQL or coding required  
-- **Quick questions** - One-click common queries
-- **Dark theme** - Professional, easy on the eyes
+## Use the app
 
-### Powerful AI
-- **Hardware detection** - Optimizes for your system
-- **Apple Silicon ready** - M1/M2/M3/M4 optimization
-- **Smart recommendations** - Best models for your RAM
-- **Offline capable** - Everything runs locally
+1. Click **Try the built-in demo** or upload a UTF-8 CSV.
+2. Review the row/column counts, missing values, duplicate count, and preview.
+3. Ask a question using one of the suggested prompts or the chat box.
+4. Expand **Sources** to inspect the exact retrieved rows. The model is instructed to cite them as `[Source N]`.
 
-## 💻 System Requirements
+Google Sheets are loaded through the public CSV export endpoint. The sheet must be viewable by anyone with the link; this is the explicit network path in an otherwise local workflow.
 
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| RAM | 4GB | 8GB+ |
-| Storage | 10GB | 20GB |
-| Python | 3.9+ | 3.11+ |
-| OS | Windows/Mac/Linux | Any |
+## Run manually
 
-The installer checks and guides you through everything needed.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r src/requirements.txt
+ollama serve
+ollama pull mxbai-embed-large
+ollama pull llama3.2
+streamlit run src/app.py
+```
 
-## 🛠️ Troubleshooting
+The REST API is optional. To use it, configure a source explicitly:
 
-<details>
-<summary><strong>Common Issues</strong></summary>
+```bash
+export DATA_SOURCE=/absolute/path/to/data.csv
+export OLLAMA_MODEL=llama3.2
+python src/api_server.py
+```
 
-### "Ollama not found"
-- **Mac**: Download from [ollama.com](https://ollama.com/download/mac)
-- **Windows**: Download from [ollama.com](https://ollama.com/download/windows)  
-- **Linux**: `curl -fsSL https://ollama.com/install.sh | sh`
+It exposes `/health`, `/ready`, and `POST /api/v1/query`. Without `DATA_SOURCE`, the API stays alive for health checks but correctly reports that it is not ready for queries.
 
-### "Port 8501 in use"
-Another app is using the port. Close other Streamlit apps or change the port in start.sh
+## Container
 
-### Google Sheets not loading
-Make sure your sheet is set to "Anyone with link can view"
+Build and run the Streamlit container while using Ollama on the host:
 
-### Out of memory
-Use the Model Settings panel to select smaller models
-</details>
+```bash
+docker build -t spreadsheet-qa .
+docker run --rm -p 8501:8501 \
+  --add-host=host.docker.internal:host-gateway \
+  -e OLLAMA_HOST=http://host.docker.internal:11434 \
+  -v spreadsheet-qa-data:/data \
+  spreadsheet-qa
+```
 
-## 🚀 Coming Soon
+The image does not package Ollama models. This keeps image builds predictable and makes the local-model boundary explicit.
 
-- ⚡ Cloud mode with GPU acceleration
-- 👥 Team collaboration features
-- 📱 Mobile app
-- 🔌 REST API
+## Tests and checks
 
-## 📄 License
+```bash
+pytest -q
+python -m py_compile src/*.py
+bash -n start.sh
+```
 
-MIT License - free for any use.
+The deterministic ingestion, profiling, Google Sheets parsing, and citation formatting tests run without Ollama or Chroma. A full answer smoke run additionally needs the Python dependencies, a running Ollama server, and both models installed.
 
----
-**Built with Streamlit, LangChain, and Ollama**
+## Privacy and remaining risks
+
+- CSV data and local model requests stay on the configured machine by default.
+- A Google Sheets URL downloads data from Google; Pinecone and Kubernetes material remain optional deployment paths and are not used by the local app.
+- Chroma persists embeddings under `VECTOR_DB_PATH` (default `./chroma_db_clients`); protect that directory like the source CSV.
+- The assistant is retrieval-grounded but still generative. Verify important totals against the source rows.
+- Large spreadsheets may need a future structured-analysis path for exact aggregations instead of relying on top-k semantic retrieval.
+
+## Next release path
+
+1. Add deterministic dataframe operations for sums, filters, grouping, and date ranges.
+2. Add an explicit source/session model so multiple datasets can be served safely by the API.
+3. Add end-to-end tests with a mocked Ollama endpoint and a small Chroma fixture.
+4. Add authentication and a deployment-specific privacy review before exposing the API beyond localhost.
+
+MIT License.

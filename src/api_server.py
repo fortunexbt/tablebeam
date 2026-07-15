@@ -17,11 +17,9 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
-from langchain_ollama.llms import OllamaLLM
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.documents import Document
-
 from vector import get_retriever
+from qa_service import answer_question
+from runtime import ollama_status, model_error_message
 
 # Configure logging
 logging.basicConfig(
@@ -35,7 +33,8 @@ logger = logging.getLogger(__name__)
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_HOST", os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"))
+DATA_SOURCE = os.getenv("DATA_SOURCE", "")
 MAX_QUERY_LENGTH = int(os.getenv("MAX_QUERY_LENGTH", "1000"))
 REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "30"))
 
@@ -84,6 +83,7 @@ class QueryResponse(BaseModel):
     context_count: int = Field(..., description="Number of documents used for context")
     processing_time_ms: float = Field(..., description="Time taken to process the request in milliseconds")
     timestamp: str = Field(..., description="Response timestamp")
+    sources: List[Dict[str, Any]] = Field(default_factory=list, description="Retrieved source rows")
 
 
 class ErrorResponse(BaseModel):
@@ -104,28 +104,30 @@ async def lifespan(app: FastAPI):
     app_start_time = time.time()
     
     try:
+        # A source is optional at process startup so health checks and the UI can
+        # start before a user uploads a file. Requests remain unavailable until
+        # both a source and local model are configured.
+        if not DATA_SOURCE:
+            logger.info("No DATA_SOURCE configured; API is alive but not ready for queries")
+            yield
+            return
+
         # Initialize retriever
         logger.info("Initializing vector store retriever...")
-        retriever = get_retriever()
+        retriever = get_retriever(DATA_SOURCE, embedding_model=os.getenv("EMBEDDING_MODEL", "mxbai-embed-large"))
         logger.info("Vector store retriever initialized successfully")
-        
+
         # Initialize LLM chain
         logger.info(f"Initializing LLM with model: {OLLAMA_MODEL}")
+        from langchain_ollama import OllamaLLM
+
         model = OllamaLLM(
             model=OLLAMA_MODEL,
             base_url=OLLAMA_BASE_URL,
             timeout=REQUEST_TIMEOUT
         )
         
-        template = """
-        You are an expert assistant helping manage validator and client onboarding workflows.
-        
-        Here are some relevant client records: {records}
-        
-        Based on the information above, provide an informed response to the following question: {question}
-        """
-        prompt = ChatPromptTemplate.from_template(template)
-        llm_chain = prompt | model
+        llm_chain = model
         logger.info("LLM chain initialized successfully")
         
     except Exception as e:
@@ -152,8 +154,8 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
-    allow_credentials=True,
+    allow_origins=[origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:8501").split(",") if origin.strip()],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -258,18 +260,7 @@ async def ready_check():
         "llm_chain": llm_chain is not None,
     }
     
-    # Test Ollama connectivity
-    try:
-        if llm_chain:
-            # Simple test to check if Ollama is responding
-            test_response = await asyncio.wait_for(
-                asyncio.to_thread(llm_chain.invoke, {"records": "test", "question": "test"}),
-                timeout=5.0
-            )
-            checks["ollama_connection"] = True
-    except Exception as e:
-        logger.warning(f"Ollama connectivity check failed: {str(e)}")
-        checks["ollama_connection"] = False
+    checks["ollama_connection"] = bool(ollama_status(OLLAMA_BASE_URL)["available"])
     
     all_ready = all(checks.values())
     
@@ -315,22 +306,12 @@ async def query_endpoint(request: QueryRequest):
     try:
         # Retrieve relevant documents
         logger.info(f"Processing query: {request.question[:100]}...")
-        documents: List[Document] = await asyncio.to_thread(
-            retriever.invoke, 
-            request.question
-        )
-        
-        # Limit documents if specified
-        if request.context_limit:
-            documents = documents[:request.context_limit]
-        
-        # Build context from documents
-        context = "\n---\n".join([doc.page_content for doc in documents])
-        
-        # Generate response using LLM
-        response = await asyncio.to_thread(
-            llm_chain.invoke,
-            {"records": context, "question": request.question}
+        result = await asyncio.to_thread(
+            answer_question,
+            retriever,
+            llm_chain,
+            request.question,
+            limit=request.context_limit or 20,
         )
         
         # Calculate processing time
@@ -339,11 +320,12 @@ async def query_endpoint(request: QueryRequest):
         logger.info(f"Query processed successfully in {processing_time:.2f}ms")
         
         return QueryResponse(
-            answer=response,
+            answer=result.answer,
             question=request.question,
-            context_count=len(documents),
+            context_count=len(result.sources),
             processing_time_ms=processing_time,
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.utcnow().isoformat(),
+            sources=[source.__dict__ for source in result.sources],
         )
         
     except asyncio.TimeoutError:

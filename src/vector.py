@@ -1,308 +1,190 @@
-from langchain_ollama import OllamaEmbeddings
-from langchain_chroma import Chroma
-from langchain_core.documents import Document
-import pandas as pd
+"""Local Chroma retrieval backed by validated spreadsheet rows."""
+
+from __future__ import annotations
+
+import hashlib
+import logging
 import os
 import shutil
-from typing import List, Union
-from langchain_core.vectorstores import VectorStoreRetriever
-from colorama import Fore, Style
-from gsheet_loader import load_gsheet_as_csv, extract_sheet_id
-import logging
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, List
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+import pandas as pd
+
+from data_pipeline import (
+    DataProfile,
+    load_data,
+    profile_dataframe,
+    source_fingerprint,
+)
+
+try:  # Keep deterministic ingestion importable before optional AI packages install.
+    from langchain_core.documents import Document
+except ImportError:  # pragma: no cover - exercised only in minimal environments.
+    @dataclass
+    class Document:  # type: ignore[no-redef]
+        page_content: str
+        metadata: dict[str, Any]
+        id: str | None = None
+
+
 logger = logging.getLogger(__name__)
 
 
-def analyze_dataframe(df: pd.DataFrame) -> None:
-    """
-    Analyzes and prints information about the DataFrame structure.
-    """
-    print(f"\n{Fore.CYAN}=== Data Analysis ==={Style.RESET_ALL}")
-    print(f"Total rows: {len(df)}")
-    print(f"Total columns: {len(df.columns)}")
-    print(f"\nColumn names and types:")
-    for col in df.columns:
-        non_null = df[col].notna().sum()
-        print(f"  - {col}: {df[col].dtype} ({non_null}/{len(df)} non-null values)")
-    print(f"{Fore.CYAN}==================={Style.RESET_ALL}\n")
+def analyze_dataframe(df: pd.DataFrame) -> DataProfile:
+    """Return a profile and log only aggregate facts."""
+
+    profile = profile_dataframe(df)
+    logger.info("Loaded %s rows and %s columns", profile.row_count, profile.column_count)
+    return profile
 
 
 def load_client_data(source: str) -> pd.DataFrame:
-    """
-    Loads the client tracking data from a CSV file or Google Sheet.
-    
-    Args:
-        source: Either a local CSV file path or a Google Sheets URL
-        
-    Returns:
-        pandas DataFrame with the client data
-    """
-    # Check if it's a Google Sheets URL
-    if source.startswith('http') or extract_sheet_id(source):
-        print(f"{Fore.CYAN}Loading data from Google Sheet...{Style.RESET_ALL}")
-        return load_gsheet_as_csv(source)
-    else:
-        # Local CSV file
-        print(f"{Fore.CYAN}Loading data from local CSV: {source}{Style.RESET_ALL}")
-        return pd.read_csv(source)
+    """Load and validate a local CSV or public Google Sheet."""
+
+    return load_data(source)
 
 
 def detect_primary_key(df: pd.DataFrame) -> str:
-    """
-    Intelligently detects the primary key column from the DataFrame.
-    
-    Priority order:
-    1. Column named 'id' (case-insensitive)
-    2. Column named 'name' (case-insensitive)
-    3. Column containing 'client' or 'company' (case-insensitive)
-    4. First column that appears to have unique or mostly unique values
-    5. Fall back to the first column
-    
-    Args:
-        df: The DataFrame to analyze
-        
-    Returns:
-        The name of the detected primary key column
-    """
-    columns_lower = {col.lower(): col for col in df.columns}
-    
-    # Check for 'id' column
-    if 'id' in columns_lower:
-        return columns_lower['id']
-    
-    # Check for 'name' column
-    if 'name' in columns_lower:
-        return columns_lower['name']
-    
-    # Check for columns containing 'client' or 'company'
-    for keyword in ['client', 'company', 'customer', 'account']:
-        for col_lower, col_original in columns_lower.items():
-            if keyword in col_lower:
-                return col_original
-    
-    # Check for columns with high uniqueness (>80% unique values)
-    for col in df.columns:
-        if df[col].dtype == 'object':  # Only check string columns
-            uniqueness_ratio = len(df[col].unique()) / len(df)
-            if uniqueness_ratio > 0.8:
-                return col
-    
-    # Fall back to first column
-    return df.columns[0]
+    """Choose a readable row identifier for source labels."""
+
+    if df.empty or len(df.columns) == 0:
+        raise ValueError("Cannot detect a row identifier in an empty dataset.")
+    columns_lower = {str(col).strip().lower(): col for col in df.columns}
+    for name in ("id", "name"):
+        if name in columns_lower:
+            return str(columns_lower[name])
+    for keyword in ("client", "company", "customer", "account"):
+        for lower, original in columns_lower.items():
+            if keyword in lower:
+                return str(original)
+    for column in df.columns:
+        non_null = df[column].dropna()
+        if len(non_null) and non_null.nunique(dropna=True) / len(df) >= 0.8:
+            return str(column)
+    return str(df.columns[0])
+
+
+def _document_id(primary_key: str, value: Any, row_index: Any) -> str:
+    raw = f"{primary_key}\0{value}\0{row_index}".encode("utf-8", errors="replace")
+    return f"row_{hashlib.sha256(raw).hexdigest()[:20]}"
 
 
 def create_documents(df: pd.DataFrame) -> List[Document]:
-    """
-    Creates LangChain Document objects from the DataFrame rows.
-    
-    Args:
-        df: pandas DataFrame containing the data
-        
-    Returns:
-        List of Document objects ready for vector storage
-    """
-    documents = []
-    
-    # Detect the primary key column
-    primary_key_col = detect_primary_key(df)
-    print(f"{Fore.YELLOW}Using '{primary_key_col}' as primary identifier{Style.RESET_ALL}")
-    
-    # Convert DataFrame to string representation for better searchability
-    df_str = df.astype(str)
-    
-    for idx, row in df.iterrows():
-        # Create a text representation of the row
-        # Format: "ColumnName: Value" for each column, joined by commas
-        row_text_parts = []
-        metadata = {"row_index": idx}
-        
-        for col in df.columns:
-            value = row[col]
-            # Skip NaN values
-            if pd.notna(value):
-                row_text_parts.append(f"{col}: {value}")
-                # Store all values in metadata for structured retrieval
-                metadata[col] = str(value)
-        
-        # Join all parts into a single text
-        page_content = ", ".join(row_text_parts)
-        
-        # Create document with primary key as the ID
-        primary_key_value = str(row[primary_key_col]) if pd.notna(row[primary_key_col]) else f"row_{idx}"
-        doc_id = f"doc_{primary_key_value}_{idx}"
-        
-        doc = Document(
-            page_content=page_content,
-            metadata=metadata,
-            id=doc_id
-        )
-        documents.append(doc)
-    
-    print(f"{Fore.GREEN}Created {len(documents)} documents from {len(df)} rows{Style.RESET_ALL}")
+    """Convert rows to searchable documents while preserving source row indices."""
+
+    primary_key = detect_primary_key(df)
+    documents: List[Document] = []
+    for row_index, row in df.iterrows():
+        parts: list[str] = []
+        metadata: dict[str, Any] = {"row_index": int(row_index)}
+        for column in df.columns:
+            value = row[column]
+            if pd.isna(value):
+                continue
+            value_text = str(value)
+            parts.append(f"{column}: {value_text}")
+            metadata[str(column)] = value_text
+        primary_value = row.get(primary_key)
+        doc_id = _document_id(primary_key, primary_value, row_index)
+        documents.append(Document(page_content=", ".join(parts), metadata=metadata, id=doc_id))
     return documents
 
 
-def setup_chroma_store(documents: List[Document], 
-                      data_source: str,
-                      force_refresh: bool = False,
-                      k: int = 5,
-                      embedding_model: str = "mxbai-embed-large") -> VectorStoreRetriever:
-    """
-    Sets up a Chroma vector store with the given documents.
-    
-    Args:
-        documents: List of Document objects to store
-        data_source: The source of the data (used for naming the collection)
-        force_refresh: If True, clears existing data and recreates the store
-        k: Number of documents to retrieve in searches
-        embedding_model: The Ollama embedding model to use
-        
-    Returns:
-        VectorStoreRetriever configured for similarity search
-    """
-    # Create embeddings using Ollama with specified model
+def _collection_name(data_source: str) -> str:
+    return f"data_{source_fingerprint(data_source)}"
+
+
+def _document_fingerprint(documents: List[Document]) -> str:
+    digest = hashlib.sha256()
+    for document in documents:
+        digest.update(str(getattr(document, "id", "")).encode())
+        digest.update(getattr(document, "page_content", "").encode("utf-8", errors="replace"))
+    return digest.hexdigest()[:16]
+
+
+def setup_chroma_store(
+    documents: List[Document],
+    data_source: str,
+    force_refresh: bool = False,
+    k: int = 5,
+    embedding_model: str = "mxbai-embed-large",
+):
+    """Create or reuse a Chroma store, invalidating stale model/data caches."""
+
+    try:
+        from langchain_chroma import Chroma
+        from langchain_ollama import OllamaEmbeddings
+    except ImportError as exc:
+        raise RuntimeError(
+            "AI dependencies are not installed. Run ./start.sh or "
+            "pip install -r src/requirements.txt."
+        ) from exc
+
+    db_root = Path(os.getenv("VECTOR_DB_PATH", "./chroma_db_clients"))
+    collection_name = _collection_name(data_source)
+    db_location = db_root / collection_name
+    db_location.mkdir(parents=True, exist_ok=True)
+    model_file = db_location / ".embedding_model"
+    data_file = db_location / ".data_fingerprint"
+    current_data = _document_fingerprint(documents)
+    stored_model = model_file.read_text().strip() if model_file.exists() else None
+    stored_data = data_file.read_text().strip() if data_file.exists() else None
+    needs_rebuild = force_refresh or stored_model != embedding_model or stored_data != current_data
+
+    if needs_rebuild and db_location.exists():
+        shutil.rmtree(db_location)
+        db_location.mkdir(parents=True, exist_ok=True)
+
     embeddings = OllamaEmbeddings(
         model=embedding_model,
-        base_url=os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+        base_url=os.getenv("OLLAMA_HOST", "http://localhost:11434"),
     )
-    
-    # Create a collection name based on the data source
-    if data_source.startswith('http'):
-        collection_name = "gsheet_data"
-    else:
-        collection_name = os.path.basename(data_source).replace('.csv', '').replace('.', '_')
-    
-    # Set up the database location
-    db_location = f"./chroma_db_clients/{collection_name}"
-    
-    # Check if we need to clear due to embedding model change
-    metadata_file = os.path.join(db_location, ".embedding_model")
-    model_changed = False
-    
-    if os.path.exists(db_location) and os.path.exists(metadata_file):
-        try:
-            with open(metadata_file, 'r') as f:
-                stored_model = f.read().strip()
-                if stored_model != embedding_model:
-                    model_changed = True
-                    print(f"{Fore.YELLOW}Embedding model changed from {stored_model} to {embedding_model}{Style.RESET_ALL}")
-        except Exception as e:
-            logger.warning(f"Could not read embedding model metadata: {e}")
-    
-    # Clear existing data if requested or model changed
-    if (force_refresh or model_changed) and os.path.exists(db_location):
-        print(f"{Fore.YELLOW}Clearing existing vector store at {db_location}...{Style.RESET_ALL}")
-        shutil.rmtree(db_location)
-    
-    # Check if we need to add documents
-    add_documents = not os.path.exists(db_location) or force_refresh or model_changed
-
     try:
         vector_store = Chroma(
             collection_name=collection_name,
-            persist_directory=db_location,
+            persist_directory=str(db_location),
             embedding_function=embeddings,
         )
-
-        if add_documents:
-            print(f"{Fore.CYAN}Adding {len(documents)} documents to vector store...{Style.RESET_ALL}")
-            vector_store.add_documents(documents, ids=[doc.id for doc in documents])
-            print(f"{Fore.GREEN}Documents added successfully!{Style.RESET_ALL}")
-            
-            # Store the embedding model metadata
-            os.makedirs(db_location, exist_ok=True)
-            with open(metadata_file, 'w') as f:
-                f.write(embedding_model)
-        else:
-            print(f"{Fore.CYAN}Using existing vector store with cached data{Style.RESET_ALL}")
-            # Verify the vector store works with current embeddings
-            try:
-                # Try a simple similarity search to check compatibility
-                test_query = "test"
-                vector_store.similarity_search(test_query, k=1)
-            except Exception as e:
-                if "dimension" in str(e).lower():
-                    print(f"{Fore.RED}Dimension mismatch detected: {e}{Style.RESET_ALL}")
-                    print(f"{Fore.YELLOW}Clearing incompatible vector store...{Style.RESET_ALL}")
-                    shutil.rmtree(db_location)
-                    # Recreate with correct dimensions
-                    vector_store = Chroma(
-                        collection_name=collection_name,
-                        persist_directory=db_location,
-                        embedding_function=embeddings,
-                    )
-                    print(f"{Fore.CYAN}Adding {len(documents)} documents to vector store...{Style.RESET_ALL}")
-                    vector_store.add_documents(documents, ids=[doc.id for doc in documents])
-                    print(f"{Fore.GREEN}Documents added successfully!{Style.RESET_ALL}")
-                    # Store the embedding model metadata
-                    with open(metadata_file, 'w') as f:
-                        f.write(embedding_model)
-                else:
-                    raise
-
-    except Exception as e:
-        logger.error(f"Error setting up Chroma store: {e}")
-        # Check if it's a permission error
-        if "readonly database" in str(e).lower() or "permission" in str(e).lower():
-            print(f"{Fore.RED}Database permission error detected.{Style.RESET_ALL}")
-            print(f"{Fore.YELLOW}This usually happens when the database was created by a different process.{Style.RESET_ALL}")
-        
-        # If any error, try to recover by clearing and recreating
-        if os.path.exists(db_location):
-            print(f"{Fore.YELLOW}Clearing and recreating vector store...{Style.RESET_ALL}")
-            try:
-                shutil.rmtree(db_location)
-            except PermissionError:
-                # Try to fix permissions first
-                import stat
-                for root, dirs, files in os.walk(db_location):
-                    for d in dirs:
-                        os.chmod(os.path.join(root, d), stat.S_IRWXU)
-                    for f in files:
-                        os.chmod(os.path.join(root, f), stat.S_IRUSR | stat.S_IWUSR)
-                shutil.rmtree(db_location)
-        
-        # Wait a moment to ensure cleanup is complete
-        import time
-        time.sleep(0.5)
-        
+        collection_empty = vector_store._collection.count() == 0
+        if needs_rebuild or collection_empty:
+            if documents:
+                vector_store.add_documents(documents, ids=[doc.id for doc in documents])
+            model_file.write_text(embedding_model)
+            data_file.write_text(current_data)
+    except Exception:
+        # A partially written local cache should never make the dataset unusable.
+        # Rebuild once; do not loop or silently swallow the second failure.
+        if db_location.exists():
+            shutil.rmtree(db_location)
+        db_location.mkdir(parents=True, exist_ok=True)
         vector_store = Chroma(
             collection_name=collection_name,
-            persist_directory=db_location,
+            persist_directory=str(db_location),
             embedding_function=embeddings,
         )
-        print(f"{Fore.CYAN}Adding {len(documents)} documents to vector store...{Style.RESET_ALL}")
-        vector_store.add_documents(documents, ids=[doc.id for doc in documents])
-        print(f"{Fore.GREEN}Documents added successfully!{Style.RESET_ALL}")
-        # Store the embedding model metadata
-        os.makedirs(db_location, exist_ok=True)
-        with open(metadata_file, 'w') as f:
-            f.write(embedding_model)
+        if documents:
+            vector_store.add_documents(documents, ids=[doc.id for doc in documents])
+        model_file.write_text(embedding_model)
+        data_file.write_text(current_data)
 
-    return vector_store.as_retriever(search_kwargs={"k": k})
+    return vector_store.as_retriever(search_kwargs={"k": max(1, min(k, 20))})
 
 
-def get_retriever(data_source: str = "client_tracking.csv", 
-                  force_refresh: bool = False,
-                  embedding_model: str = "mxbai-embed-large") -> VectorStoreRetriever:
-    """
-    Returns a vector store retriever using client data from the given source.
-    
-    Args:
-        data_source: Either a local CSV file path or a Google Sheets URL
-        force_refresh: If True, clears existing data and recreates the vector store
-        embedding_model: The Ollama embedding model to use
-        
-    Returns:
-        VectorStoreRetriever configured with the client data
-    """
-    # Load data
+def get_retriever(
+    data_source: str = "sample_data.csv",
+    force_refresh: bool = False,
+    embedding_model: str = "mxbai-embed-large",
+):
+    """Load a source and return its local Chroma retriever."""
+
     df = load_client_data(data_source)
-    analyze_dataframe(df)  # Show data structure
-    docs = create_documents(df)
-    
-    # Create ChromaDB retriever
-    logger.info("Using ChromaDB vector store")
-    return setup_chroma_store(docs, data_source, force_refresh, embedding_model=embedding_model)
+    analyze_dataframe(df)
+    documents = create_documents(df)
+    return setup_chroma_store(
+        documents,
+        data_source,
+        force_refresh=force_refresh,
+        embedding_model=embedding_model,
+    )
