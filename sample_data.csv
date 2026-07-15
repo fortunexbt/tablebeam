@@ -1,0 +1,13 @@
+client_id,company,segment,owner,status,annual_revenue,health_score,last_contacted,notes
+C-1001,Northstar Labs,Technology,Maya,Active,185000,92,2025-06-18,Renewal discussion scheduled for July
+C-1002,Acorn Retail,Retail,Jon,At risk,72000,58,2025-05-29,Waiting on procurement approval
+C-1003,Bluebird Logistics,Logistics,Sam,Active,246000,87,2025-06-25,Expanded to two additional regions
+C-1004,Cedar & Co,Professional services,Maya,Onboarding,118000,74,2025-06-21,Training session booked
+C-1005,Delta Health,Healthcare,Jon,Active,310000,95,2025-06-27,Strong adoption across three teams
+C-1006,Evergreen Foods,Food and beverage,Sam,At risk,64000,49,2025-05-14,Champion changed roles; follow-up needed
+C-1007,Fieldstone Energy,Energy,Maya,Active,275000,83,2025-06-12,Interested in analytics add-on
+C-1008,Harbor Studio,Media,Jon,Churned,39000,22,2025-04-30,Contract ended after budget reduction
+C-1009,Juniper Finance,Financial services,Sam,Onboarding,154000,68,2025-06-24,Data import is in progress
+C-1010,Maple Education,Education,Maya,Active,98000,89,2025-06-20,Positive executive review
+C-1011,Oakline Manufacturing,Manufacturing,Jon,At risk,132000,61,2025-06-03,Usage dropped after team reorganization
+C-1012,Riverbank Travel,Travel,Sam,Active,86000,81,2025-06-26,Planning a seasonal campaign

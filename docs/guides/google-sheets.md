@@ -1,88 +1,17 @@
-# Google Sheets Integration Guide
+# Tablebeam + Google Sheets
 
-This guide explains how to use Google Sheets as a data source for the Spreadsheet Q&A Assistant.
+Tablebeam can load a public Google Sheet through Google's CSV export endpoint.
 
-## Prerequisites
+1. In Google Sheets, choose **Share → Anyone with the link → Viewer**.
+2. Start Tablebeam with `./start.sh`.
+3. Choose **Google Sheet** in the sidebar, paste the full URL, and click **Load data**.
 
-- Google account
-- Google Sheet with data (must be publicly accessible)
+URLs with a tab identifier work:
 
-## Making Your Sheet Public
-
-1. Open your Google Sheet
-2. Click "Share" button
-3. Change access to "Anyone with the link can view"
-4. Copy the sharing link
-
-## Supported URL Formats
-
-The assistant accepts Google Sheets in several formats:
-
-```bash
-# Full URL
-python src/chat_interface.py "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
-
-# With specific sheet/tab
-python src/chat_interface.py "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit#gid=123"
-
-# Just the ID
-python src/chat_interface.py "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
+```text
+https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=123
 ```
 
-## Usage Methods
+Tablebeam validates the downloaded table, shows its profile and preview, then performs local row search. It does not send the entire sheet to the model—only the selected rows and aggregate profile are included in the request.
 
-### 1. Command Line Argument
-```bash
-python src/chat_interface.py "YOUR_GOOGLE_SHEETS_URL"
-```
-
-### 2. Environment Variable
-```bash
-export CLIENT_DATA_SOURCE="YOUR_GOOGLE_SHEETS_URL"
-python src/chat_interface.py
-```
-
-### 3. Interactive Prompt
-```bash
-python src/chat_interface.py
-# Then enter the URL when prompted
-```
-
-## Data Refresh Options
-
-When switching between different sheets or updating data:
-
-```bash
-# Clear all existing data before loading
-python src/chat_interface.py --clear
-
-# Force refresh with new data
-python src/chat_interface.py --force-refresh
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **"Access Denied" Error**
-   - Ensure your sheet is set to "Anyone with the link can view"
-   - Check the URL is correctly formatted
-
-2. **"Invalid Sheet ID" Error**
-   - Verify the sheet ID in your URL
-   - Try using the full URL instead of just the ID
-
-3. **Data Not Updating**
-   - Use `--force-refresh` flag to reload data
-   - Or use `--clear` to completely reset the vector store
-
-## Best Practices
-
-- Keep sheets reasonably sized (under 10,000 rows for best performance)
-- Use clear column headers
-- Avoid complex formulas that might not export well
-- Consider using specific sheet tabs for different datasets
-
-## Privacy Note
-
-When using Google Sheets, the data is downloaded locally and processed on your machine. No data is sent to external services (unless using cloud deployment mode with Pinecone).
+If access fails, confirm the sharing setting and retry. Google Sheets is the explicit network path; CSV loading and model calls remain on the configured machine.

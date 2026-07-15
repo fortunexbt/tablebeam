@@ -1,118 +1,113 @@
-# 📊 Spreadsheet Q&A Assistant
+# Tablebeam
 
-Ask questions about your spreadsheet data in plain English. Get instant AI-powered answers. **100% private** - runs entirely on your computer.
+![Tablebeam banner](assets/tablebeam-banner.jpg)
 
-![Status](https://img.shields.io/badge/Status-Ready-green)
-![License](https://img.shields.io/badge/License-MIT-blue)
+**Ask a local model about your tables.**
 
-## 🚀 Quick Start (2 minutes)
+Tablebeam is a small, private-by-default web app for CSV files and public Google Sheets. It validates and profiles your table locally, retrieves the most relevant rows, and sends only that context to an OpenAI-compatible local model such as [LM Studio](https://lmstudio.ai/) or [Ollama](https://ollama.com/).
 
-### macOS/Linux:
+[![Tests](https://github.com/fortunexbt/tablebeam/actions/workflows/test.yml/badge.svg)](https://github.com/fortunexbt/tablebeam/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-22d3ee.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-0f172a.svg)](https://www.python.org/)
+
+## Why Tablebeam
+
+- **One command:** launch a working demo without a database, embedding download, or model SDK.
+- **Local-first:** LM Studio is the default; Ollama and other OpenAI-compatible servers work too.
+- **Traceable:** answers include expandable source rows with `[Source N]` citations.
+- **Honest:** deterministic ingestion and row search stay separate from generative answers.
+- **Small:** Streamlit, pandas, requests, and an optional FastAPI wrapper.
+
+## Start in two minutes
+
+1. In LM Studio, download a chat model and start **Developer → Local Server**.
+2. Run Tablebeam:
+
+   ```bash
+   git clone https://github.com/fortunexbt/tablebeam.git
+   cd tablebeam
+   ./start.sh --demo
+   ```
+
+The launcher creates `.venv`, installs the small dependency set when needed, and opens <http://localhost:8501>. The demo uses `sample_data.csv`; upload your own CSV or paste a public Google Sheets URL in the sidebar.
+
+Windows:
+
+```bat
+start.bat --demo
+```
+
+## Use another local server
+
+Ollama exposes the same API shape:
+
 ```bash
-git clone https://github.com/smokingfive/client-tracker-assistant.git
-cd client-tracker-assistant
+ollama serve
+ollama pull llama3.2
+./start.sh --ollama --demo
+```
+
+Any compatible endpoint can be configured directly:
+
+```bash
+export LLM_BASE_URL=http://localhost:1234/v1
+export LLM_MODEL=your-loaded-model
 ./start.sh
 ```
 
-### Windows:
-```cmd
-git clone https://github.com/smokingfive/client-tracker-assistant.git
-cd client-tracker-assistant
-start.bat
+LM Studio and Ollama normally need no API key. If your server requires one, set `LLM_API_KEY` or enter it in the sidebar.
+
+## How it works
+
+1. Validate headers, row limits, empty rows, and malformed CSV data.
+2. Show a compact profile: shape, column types, missing values, duplicates, and warnings.
+3. Rank rows with a deterministic lexical search — no vector database or embedding service.
+4. Send the profile, selected rows, and question to the local model.
+5. Display the answer beside the exact retrieved rows.
+
+For exact totals, joins, or complex grouping, use a dataframe or SQL workflow. Tablebeam is optimized for quick, inspectable questions over small-to-medium tables.
+
+## Google Sheets
+
+The sheet must be shared as **Anyone with the link → Viewer**. Paste its URL into the sidebar and click **Load data**. Google is the only external data fetch in the normal workflow; the downloaded table and model request stay on the configured machine.
+
+## Optional API
+
+The web app is the primary interface. For scripts or local integrations, start the optional API with an explicit source:
+
+```bash
+export DATA_SOURCE=/absolute/path/to/data.csv
+export LLM_BASE_URL=http://localhost:1234/v1
+export LLM_MODEL=your-loaded-model
+python src/api_server.py
 ```
 
-**That's it!** The app will:
-- ✅ Check all requirements
-- ✅ Install everything needed
-- ✅ Download AI models (first time only)
-- ✅ Open in your browser automatically
+It exposes `/health`, `/ready`, and `POST /api/v1/query`. It never downloads a model and remains unavailable for queries until `DATA_SOURCE` is set.
 
-## 🎯 What You Can Do
+## Docker
 
-Upload any CSV or connect Google Sheets, then ask questions like:
-- "What are the main trends in this data?"
-- "Show me the top 10 entries by revenue"
-- "Which categories have the most items?"
-- "Summarize the key insights"
-- "Find all records from last month"
+```bash
+docker build -t tablebeam .
+docker run --rm -p 8501:8501 \
+  --add-host=host.docker.internal:host-gateway \
+  -e LLM_BASE_URL=http://host.docker.internal:1234/v1 \
+  tablebeam
+```
 
-## 📸 Screenshots
+Start LM Studio on the host first. The container runs as a non-root user and does not package models or persistent data.
 
-### Beautiful Dark Theme UI
-The app features a modern, professional interface:
-- 🌙 Dark theme that's easy on the eyes
-- 📊 Clean data visualization
-- 💬 Chat-style interaction
-- 🚀 LOCAL/CLOUD mode toggle (cloud coming soon)
+## Development
 
-### Smart Features
-- **Drag & Drop**: Just drop your CSV file
-- **Google Sheets**: Paste URL and connect instantly  
-- **Natural Language**: No SQL or coding required
-- **Privacy First**: Your data never leaves your computer
+```bash
+pytest -q
+python -m py_compile src/*.py
+bash -n start.sh
+```
 
-## 🛠 Requirements
+The tests use fake provider responses, so they do not require LM Studio or Ollama.
 
-The start script checks and helps install everything:
-- **Python 3.9+** (guides you if missing)
-- **Ollama** (guides you if missing)
-- **10GB disk space** (for AI models)
-- **8GB RAM** (16GB recommended)
+## Privacy
 
-## 🆘 Troubleshooting
+CSV data stays local. A Google Sheets URL is the explicit network path. Tablebeam sends only the selected rows and deterministic profile to the configured model endpoint; check that server's own logging and retention settings for stricter privacy requirements.
 
-### "Python not found"
-- **Windows**: Download from [python.org](https://python.org) - CHECK "Add to PATH"!
-- **Mac**: Usually pre-installed, or use `brew install python3`
-- **Linux**: Use `sudo apt install python3` or equivalent
-
-### "Ollama not found"
-The script will guide you, but:
-- **Mac**: [Download Ollama for Mac](https://ollama.com/download/mac)
-- **Windows**: [Download Ollama for Windows](https://ollama.com/download/windows)
-- **Linux**: Run `curl -fsSL https://ollama.com/install.sh | sh`
-
-### "Port 8501 in use"
-Another app is using the port. Either:
-- Close other Streamlit apps, OR
-- Edit `start.sh` and change `8501` to `8502`
-
-### Still having issues?
-1. Run `./check_install.sh` to diagnose the problem
-2. Make sure you're in the project folder
-3. Try deleting `venv/` folder and run again
-4. Check you have 10GB free disk space
-
-## 🔮 Roadmap
-
-### Now (Local Mode)
-- ✅ CSV file upload
-- ✅ Google Sheets connection
-- ✅ Natural language Q&A
-- ✅ 100% private & local
-
-### Coming Soon (Cloud Mode)
-- ⚡ 10x faster with GPU processing
-- 👥 Team collaboration
-- 💾 Save and share insights
-- 🔌 API for integrations
-- 📱 Mobile app
-
-## 💡 Pro Tips
-
-1. **First time?** The AI model download takes 5-10 minutes (one time only)
-2. **Google Sheets**: Must be "viewable by anyone with link"
-3. **Large files**: Start with a smaller sample first
-4. **Best results**: Ask specific questions about your data
-
-## 🤝 Contributing
-
-We welcome contributions! Feel free to open issues or submit pull requests.
-
-## 📄 License
-
-MIT License - use freely for any purpose.
-
----
-
-**Built with ❤️ using Streamlit, LangChain, and Ollama**
+MIT licensed. See [LICENSE](LICENSE).

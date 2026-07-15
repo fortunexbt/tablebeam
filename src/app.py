@@ -1,378 +1,157 @@
-import streamlit as st
-import tempfile
+"""Tablebeam web app: load a table, choose a local model server, ask questions."""
+
+from __future__ import annotations
+
+import os
 from pathlib import Path
-import sys
 
-# Add parent directory to path to import local modules
-sys.path.append(str(Path(__file__).parent))
+import streamlit as st
 
-# Lazy imports to speed up initial load
-def get_imports():
-    global pd, get_retriever, load_client_data, create_documents
-    global create_retrieval_chain, create_stuff_documents_chain
-    global ChatPromptTemplate, ChatOllama
-    
-    if 'pd' not in globals():
-        import pandas as pd
-        from vector import get_retriever, load_client_data, create_documents
-        from langchain.chains import create_retrieval_chain
-        from langchain.chains.combine_documents import create_stuff_documents_chain
-        from langchain_core.prompts import ChatPromptTemplate
-        from langchain_ollama import ChatOllama
+from assistant_core import LocalTable, OpenAICompatibleClient, ProviderError
 
-# Set page config
-st.set_page_config(
-    page_title="Spreadsheet Q&A Assistant",
-    page_icon="📊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
-# Professional CSS with better colors (not all black)
-st.markdown("""
-<style>
-    /* Main app background - subtle dark */
-    .stApp {
-        background-color: #0e1117;
-    }
-    
-    /* Sidebar with slight contrast */
-    section[data-testid="stSidebar"] {
-        background-color: #1a1f2e;
-        border-right: 1px solid #2d3748;
-    }
-    
-    /* Feature cards */
-    .feature-card {
-        background-color: #1a1f2e;
-        padding: 20px;
-        border-radius: 10px;
-        border: 1px solid #2d3748;
-        margin-bottom: 20px;
-        transition: all 0.3s ease;
-    }
-    
-    .feature-card:hover {
-        border-color: #3182ce;
-        transform: translateY(-2px);
-    }
-    
-    /* Quick question pills */
-    .quick-question {
-        display: inline-block;
-        background-color: #2d3748;
-        color: #e2e8f0;
-        padding: 8px 16px;
-        border-radius: 20px;
-        margin: 4px;
-        cursor: pointer;
-        transition: all 0.2s;
-        border: 1px solid transparent;
-    }
-    
-    .quick-question:hover {
-        background-color: #3182ce;
-        border-color: #3182ce;
-    }
-    
-    /* Better button styling */
-    .stButton > button {
-        background-color: #3182ce;
-        color: white;
-        border: none;
-        transition: all 0.2s ease;
-    }
-    
-    .stButton > button:hover {
-        background-color: #2563eb;
-        transform: translateY(-1px);
-    }
-    
-    /* Chat messages */
-    .stChatMessage {
-        background-color: rgba(26, 31, 46, 0.6);
-        border: 1px solid #2d3748;
-        border-radius: 10px;
-        margin-bottom: 10px;
-    }
-    
-    /* Status badge */
-    .status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background-color: rgba(72, 187, 120, 0.1);
-        border: 1px solid #48bb78;
-        padding: 8px 16px;
-        border-radius: 20px;
-        color: #48bb78;
-        font-size: 14px;
-    }
-    
-    /* Hide Streamlit elements */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    .stDeployButton {display: none;}
-    
-    /* File uploader */
-    [data-testid="stFileUploadDropzone"] {
-        background-color: #1a1f2e;
-        border: 2px dashed #2d3748;
-        border-radius: 10px;
-    }
-    
-    [data-testid="stFileUploadDropzone"]:hover {
-        border-color: #3182ce;
-    }
-    
-    /* Text inputs */
-    .stTextInput > div > div > input {
-        background-color: #1a1f2e;
-        border: 1px solid #2d3748;
-        color: white;
-    }
-</style>
-""", unsafe_allow_html=True)
+DEMO_PATH = Path(__file__).parent.parent / "sample_data.csv"
+PROVIDERS = {
+    "LM Studio": "http://localhost:1234/v1",
+    "Ollama": "http://localhost:11434/v1",
+}
 
-# Initialize session state
-if 'messages' not in st.session_state:
+
+def setup_state() -> None:
+    defaults = {
+        "table": None,
+        "messages": [],
+        "queued_question": None,
+        "demo_loaded": False,
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+
+def load_demo() -> None:
+    st.session_state.table = LocalTable.from_source(str(DEMO_PATH))
+    st.session_state.demo_loaded = True
     st.session_state.messages = []
-if 'retriever' not in st.session_state:
-    st.session_state.retriever = None
-if 'data_loaded' not in st.session_state:
-    st.session_state.data_loaded = False
-if 'current_data_source' not in st.session_state:
-    st.session_state.current_data_source = None
 
-# Header
-st.markdown("""
-<div style='text-align: center; padding: 20px 0 40px 0;'>
-    <h1 style='color: #3182ce; margin-bottom: 10px;'>📊 Spreadsheet Q&A Assistant</h1>
-    <p style='color: #a0aec0; font-size: 18px;'>Ask questions about your data in natural language</p>
-</div>
-""", unsafe_allow_html=True)
 
-# Sidebar
+def render_sources(sources: list[dict]) -> None:
+    if not sources:
+        return
+    with st.expander(f"Sources ({len(sources)})", expanded=False):
+        for source in sources:
+            st.markdown(f"**{source['citation']} · row {source['row_number']}**")
+            st.code(source["content"], language="text")
+
+
+st.set_page_config(page_title="Tablebeam", page_icon="✦", layout="wide")
+setup_state()
+
+st.title("✦ Tablebeam")
+st.caption("Ask your local model about a CSV or Google Sheet — with the rows behind every answer.")
+
 with st.sidebar:
-    # AI Engine Status
-    st.markdown("### 🤖 AI Engine Status")
+    st.header("1. Model")
+    provider_name = st.radio("Provider", list(PROVIDERS), horizontal=True)
+    default_url = os.getenv("LLM_BASE_URL", PROVIDERS[provider_name])
+    base_url = st.text_input("Server URL", value=default_url, help="LM Studio: start its OpenAI-compatible server first.")
+    model = st.text_input("Model", value=os.getenv("LLM_MODEL", "auto"), help="Use auto to select the first loaded model.")
+    api_key = st.text_input("API key (usually blank)", value=os.getenv("LLM_API_KEY", ""), type="password")
+    client = OpenAICompatibleClient(base_url=base_url, model=model, api_key=api_key, timeout=120)
+    status = client.status()
+    if status["ready"]:
+        st.success(f"Connected · {len(status['models'])} model(s)")
+        st.caption(", ".join(status["models"][:3]))
+    else:
+        st.warning("Local server not connected")
+        st.caption("Start LM Studio's local server, or run `ollama serve`.")
+
+    st.divider()
+    st.header("2. Table")
+    if st.button("Use demo data", use_container_width=True):
+        try:
+            load_demo()
+        except Exception as exc:
+            st.error(str(exc))
+
+    data_kind = st.radio("Source", ["CSV file", "Google Sheet"], horizontal=True)
+    uploaded = None
+    sheet_url = ""
+    if data_kind == "CSV file":
+        uploaded = st.file_uploader("Choose a CSV", type=["csv"])
+    else:
+        sheet_url = st.text_input("Public Google Sheets URL", placeholder="https://docs.google.com/spreadsheets/d/…")
+
+    if st.button("Load data", type="primary", use_container_width=True):
+        try:
+            if uploaded is not None:
+                st.session_state.table = LocalTable.from_csv_bytes(uploaded.getvalue())
+                st.session_state.demo_loaded = False
+            elif sheet_url.strip():
+                st.session_state.table = LocalTable.from_source(sheet_url.strip())
+                st.session_state.demo_loaded = False
+            else:
+                st.error("Choose a CSV, enter a Google Sheet URL, or use the demo.")
+            st.session_state.messages = []
+        except Exception as exc:
+            st.error(str(exc))
+
+    if st.session_state.table is not None:
+        profile = st.session_state.table.profile
+        st.divider()
+        st.metric("Rows", f"{profile.row_count:,}")
+        st.metric("Columns", profile.column_count)
+        st.caption("Columns: " + ", ".join(profile.columns))
+        for warning in profile.warnings:
+            st.warning(warning)
+        with st.expander("Preview", expanded=False):
+            st.dataframe(st.session_state.table.dataframe.head(10), use_container_width=True, hide_index=True)
+
+if os.getenv("START_WITH_DEMO") == "1" and st.session_state.table is None:
     try:
-        import requests
-        response = requests.get("http://localhost:11434/api/tags", timeout=2)
-        if response.status_code == 200:
-            st.success("✅ Ollama is running")
-        else:
-            st.error("❌ Ollama is not responding")
-    except:
-        st.error("❌ Ollama is not running")
-        st.code("ollama serve", language="bash")
-    
-    st.markdown("---")
-    
-    # Data Source Section
-    st.markdown("### 📁 Data Source")
-    
-    data_source = st.radio(
-        "Choose your data:",
-        ["📤 Upload CSV File", "🔗 Google Sheets URL"],
-        index=0,
-        label_visibility="collapsed"
-    )
-    
-    data_path = None
-    
-    if data_source == "📤 Upload CSV File":
-        uploaded_file = st.file_uploader(
-            "Drop your CSV here",
-            type=['csv'],
-            help="Supports any CSV format"
-        )
-        
-        if uploaded_file is not None:
-            with tempfile.NamedTemporaryFile(delete=False, suffix='.csv') as tmp_file:
-                tmp_file.write(uploaded_file.getvalue())
-                data_path = tmp_file.name
-                st.session_state.current_data_source = uploaded_file.name
-    
-    elif data_source == "🔗 Google Sheets URL":
-        sheet_url = st.text_input(
-            "Google Sheets URL",
-            placeholder="https://docs.google.com/spreadsheets/d/...",
-            help="Sheet must be publicly viewable"
-        )
-        
-        if sheet_url:
-            data_path = sheet_url
-            st.session_state.current_data_source = "Google Sheets"
-    
-    # Load data button
-    if data_path:
-        if st.button("🚀 Load Data", type="primary", use_container_width=True):
-            with st.spinner("Processing your data..."):
-                try:
-                    get_imports()  # Load heavy imports only when needed
-                    df = load_client_data(data_path)
-                    documents = create_documents(df)
-                    retriever = get_retriever(data_path)
-                    
-                    st.session_state.retriever = retriever
-                    st.session_state.data_loaded = True
-                    st.session_state.messages = []
-                    
-                    st.success(f"✅ Loaded {len(df)} rows, {len(df.columns)} columns")
-                    
-                    with st.expander("📊 Data Preview", expanded=False):
-                        st.dataframe(df.head(10), use_container_width=True, hide_index=True)
-                    
-                except Exception as e:
-                    st.error(f"❌ Error: {str(e)}")
+        load_demo()
+    except Exception as exc:
+        st.error(str(exc))
 
-# Main chat interface
-if st.session_state.data_loaded:
-    # Status indicator
-    st.markdown(f"""
-    <div class='status-badge'>
-        <span style='width: 8px; height: 8px; background: #48bb78; border-radius: 50%; display: inline-block;'></span>
-        Connected to: {st.session_state.current_data_source}
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # Quick questions in the main area (not sidebar!)
-    st.markdown("#### 💡 Quick Questions")
-    quick_questions = [
-        "What are the main patterns in this data?",
-        "Summarize the key insights",
-        "Show me statistical summary",
-        "What are the unique values?",
-        "Find correlations in the data"
-    ]
-    
-    # Create columns for quick question buttons
-    cols = st.columns(3)
-    for i, question in enumerate(quick_questions):
-        with cols[i % 3]:
-            if st.button(question, key=f"quick_{i}", use_container_width=True):
-                st.session_state.messages.append({"role": "user", "content": question})
-                st.rerun()
-    
-    st.markdown("---")
-    
-    # Chat messages container
-    chat_container = st.container()
-    with chat_container:
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
-    
-    # Chat input at the bottom
-    if prompt := st.chat_input("Ask anything about your data...", key="chat_input"):
-        # Add user message to history and process
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        
-        # Display user message
-        with chat_container:
-            with st.chat_message("user"):
-                st.write(prompt)
-        
-        # Generate and display response
-        with chat_container:
-            with st.chat_message("assistant"):
-                with st.spinner("Analyzing..."):
-                    try:
-                        get_imports()  # Ensure imports are loaded
-                        # Set up the QA chain
-                        llm = ChatOllama(model="llama3.2", temperature=0.7)
-                        
-                        system_prompt = (
-                            "You are a helpful data analyst assistant. "
-                            "Use the retrieved context to answer questions accurately. "
-                            "If you don't know something, say so. "
-                            "Format your responses clearly with bullet points or tables when appropriate. "
-                            "Be concise but thorough."
-                            "\n\nContext:\n{context}"
-                        )
-                        
-                        prompt_template = ChatPromptTemplate.from_messages([
-                            ("system", system_prompt),
-                            ("human", "{input}"),
-                        ])
-                        
-                        question_answer_chain = create_stuff_documents_chain(llm, prompt_template)
-                        rag_chain = create_retrieval_chain(st.session_state.retriever, question_answer_chain)
-                        
-                        # Get response
-                        response = rag_chain.invoke({"input": prompt})
-                        answer = response["answer"]
-                        
-                        # Display response
-                        st.write(answer)
-                        
-                        # Show source documents in a cleaner way
-                        if "context" in response and response["context"]:
-                            with st.expander("📄 View Source Data", expanded=False):
-                                for i, doc in enumerate(response["context"][:3]):
-                                    st.markdown(f"**Source {i+1}:**")
-                                    st.code(doc.page_content, language="text")
-                        
-                        # Add assistant message to history
-                        st.session_state.messages.append({"role": "assistant", "content": answer})
-                        
-                    except Exception as e:
-                        st.error(f"Error: {str(e)}")
-                        with st.expander("💡 Troubleshooting"):
-                            st.markdown("""
-                            1. **Check Ollama**: Make sure it's running (`ollama serve`)
-                            2. **Check Models**: Ensure you have `llama3.2` and `mxbai-embed-large`
-                            3. **Memory**: Close other applications if running out of memory
-                            """)
-
+table: LocalTable | None = st.session_state.table
+if table is None:
+    st.info("Load a CSV, connect a public Google Sheet, or click Use demo data in the sidebar.")
+    st.markdown("**LM Studio quick start**: load a model → Developer → Start Server → leave the URL at `http://localhost:1234/v1`. Then ask a question.")
 else:
-    # Welcome screen
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.markdown("""
-        <div class='feature-card'>
-            <h3 style='color: #48bb78;'>🏠 Local & Private</h3>
-            <p style='color: #a0aec0;'>Your data never leaves your computer. Complete privacy guaranteed.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""
-        <div class='feature-card'>
-            <h3 style='color: #4299e1;'>🤖 AI-Powered</h3>
-            <p style='color: #a0aec0;'>Advanced language models understand your questions naturally.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("""
-        <div class='feature-card'>
-            <h3 style='color: #ed8936;'>⚡ Instant Insights</h3>
-            <p style='color: #a0aec0;'>Get answers in seconds, not hours. No SQL required.</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # Getting started guide
-    st.markdown("""
-    <div style='background-color: #1a1f2e; padding: 30px; border-radius: 10px; margin-top: 40px;'>
-        <h3 style='text-align: center; color: #e2e8f0; margin-bottom: 20px;'>🚀 Getting Started</h3>
-        <div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center;'>
-            <div>
-                <div style='background-color: #3182ce; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;'>1</div>
-                <p style='color: #a0aec0;'>Upload your CSV or connect Google Sheets</p>
-            </div>
-            <div>
-                <div style='background-color: #3182ce; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;'>2</div>
-                <p style='color: #a0aec0;'>Click "Load Data" to process</p>
-            </div>
-            <div>
-                <div style='background-color: #3182ce; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;'>3</div>
-                <p style='color: #a0aec0;'>Start asking questions!</p>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    label = "Built-in demo" if st.session_state.demo_loaded else "Loaded dataset"
+    st.success(f"{label}: {table.profile.row_count:,} rows ready")
+    st.subheader("Ask a question")
+
+    quick_questions = [
+        "Summarize the key insights.",
+        "What are the main patterns?",
+        "What data is missing?",
+        "Show the highest-value records.",
+    ]
+    quick_columns = st.columns(4)
+    for index, question in enumerate(quick_questions):
+        if quick_columns[index].button(question, key=f"quick_{index}", use_container_width=True):
+            st.session_state.queued_question = question
+            st.rerun()
+
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.write(message["content"])
+            if message["role"] == "assistant":
+                render_sources(message.get("sources", []))
+
+    question = st.session_state.pop("queued_question", None) or st.chat_input("Ask about your data")
+    if question:
+        st.session_state.messages.append({"role": "user", "content": question})
+        with st.chat_message("user"):
+            st.write(question)
+        with st.chat_message("assistant"):
+            with st.spinner("Asking the local model…"):
+                try:
+                    answer, sources = client.ask(question, table)
+                    source_dicts = [source.as_dict() for source in sources]
+                    st.write(answer)
+                    render_sources(source_dicts)
+                    st.session_state.messages.append({"role": "assistant", "content": answer, "sources": source_dicts})
+                except ProviderError as exc:
+                    st.error(str(exc))
