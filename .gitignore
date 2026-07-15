@@ -32,15 +32,12 @@ venv.bak/
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Vector stores and databases
-chroma_db_clients/
-**/chroma_db_*/
-pinecone_cache/
-*.faiss
-*.pkl
+# Local runtime files
 *.db
 *.sqlite
 *.sqlite3
+*.faiss
+*.pkl
 
 # Environment variables
 .env

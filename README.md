@@ -1,75 +1,102 @@
-# Spreadsheet Q&A Assistant
+# Tablebeam
 
-A local-first Streamlit app for exploring CSV files and public Google Sheets with a local Ollama model. It profiles the data before indexing it, validates the input boundary, and shows the retrieved source rows alongside every generated answer.
+![Tablebeam banner](assets/tablebeam-banner.jpg)
 
-## Quick start
+**Ask a local model about your tables.**
 
-Prerequisites: Python 3.10+ and [Ollama](https://ollama.com/download) installed and available on the machine.
+Tablebeam is a small, private-by-default web app for CSV files and public Google Sheets. It validates and profiles your table locally, retrieves the most relevant rows, and sends only that context to an OpenAI-compatible local model such as [LM Studio](https://lmstudio.ai/) or [Ollama](https://ollama.com/).
 
-```bash
-git clone https://github.com/smokingfive/client-tracker-assistant.git
-cd client-tracker-assistant
-./start.sh --demo
+[![Tests](https://github.com/fortunexbt/tablebeam/actions/workflows/test.yml/badge.svg)](https://github.com/fortunexbt/tablebeam/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-22d3ee.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-0f172a.svg)](https://www.python.org/)
+
+## Why Tablebeam
+
+- **One command:** launch a working demo without a database, embedding download, or model SDK.
+- **Local-first:** LM Studio is the default; Ollama and other OpenAI-compatible servers work too.
+- **Traceable:** answers include expandable source rows with `[Source N]` citations.
+- **Honest:** deterministic ingestion and row search stay separate from generative answers.
+- **Small:** Streamlit, pandas, requests, and an optional FastAPI wrapper.
+
+## Start in two minutes
+
+1. In LM Studio, download a chat model and start **Developer → Local Server**.
+2. Run Tablebeam:
+
+   ```bash
+   git clone https://github.com/fortunexbt/tablebeam.git
+   cd tablebeam
+   ./start.sh --demo
+   ```
+
+The launcher creates `.venv`, installs the small dependency set when needed, and opens <http://localhost:8501>. The demo uses `sample_data.csv`; upload your own CSV or paste a public Google Sheets URL in the sidebar.
+
+Windows:
+
+```bat
+start.bat --demo
 ```
 
-The launcher creates `.venv`, installs the pinned Python dependencies only when they are missing, starts a local Ollama process when needed, pulls `mxbai-embed-large` and `llama3.2` if they are missing, and opens the app at <http://localhost:8501>. Use `./start.sh --skip-model-pull` to launch the UI without downloading models.
+## Use another local server
 
-Useful options:
-
-```bash
-./start.sh --help
-./start.sh --skip-install --skip-model-pull
-```
-
-Windows users can use `start.bat`, then open the shown local URL.
-
-## Use the app
-
-1. Click **Try the built-in demo** or upload a UTF-8 CSV.
-2. Review the row/column counts, missing values, duplicate count, and preview.
-3. Ask a question using one of the suggested prompts or the chat box.
-4. Expand **Sources** to inspect the exact retrieved rows. The model is instructed to cite them as `[Source N]`.
-
-Google Sheets are loaded through the public CSV export endpoint. The sheet must be viewable by anyone with the link; this is the explicit network path in an otherwise local workflow.
-
-## Run manually
+Ollama exposes the same API shape:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -r src/requirements.txt
 ollama serve
-ollama pull mxbai-embed-large
 ollama pull llama3.2
-streamlit run src/app.py
+./start.sh --ollama --demo
 ```
 
-The REST API is optional. To use it, configure a source explicitly:
+Any compatible endpoint can be configured directly:
+
+```bash
+export LLM_BASE_URL=http://localhost:1234/v1
+export LLM_MODEL=your-loaded-model
+./start.sh
+```
+
+LM Studio and Ollama normally need no API key. If your server requires one, set `LLM_API_KEY` or enter it in the sidebar.
+
+## How it works
+
+1. Validate headers, row limits, empty rows, and malformed CSV data.
+2. Show a compact profile: shape, column types, missing values, duplicates, and warnings.
+3. Rank rows with a deterministic lexical search — no vector database or embedding service.
+4. Send the profile, selected rows, and question to the local model.
+5. Display the answer beside the exact retrieved rows.
+
+For exact totals, joins, or complex grouping, use a dataframe or SQL workflow. Tablebeam is optimized for quick, inspectable questions over small-to-medium tables.
+
+## Google Sheets
+
+The sheet must be shared as **Anyone with the link → Viewer**. Paste its URL into the sidebar and click **Load data**. Google is the only external data fetch in the normal workflow; the downloaded table and model request stay on the configured machine.
+
+## Optional API
+
+The web app is the primary interface. For scripts or local integrations, start the optional API with an explicit source:
 
 ```bash
 export DATA_SOURCE=/absolute/path/to/data.csv
-export OLLAMA_MODEL=llama3.2
+export LLM_BASE_URL=http://localhost:1234/v1
+export LLM_MODEL=your-loaded-model
 python src/api_server.py
 ```
 
-It exposes `/health`, `/ready`, and `POST /api/v1/query`. Without `DATA_SOURCE`, the API stays alive for health checks but correctly reports that it is not ready for queries.
+It exposes `/health`, `/ready`, and `POST /api/v1/query`. It never downloads a model and remains unavailable for queries until `DATA_SOURCE` is set.
 
-## Container
-
-Build and run the Streamlit container while using Ollama on the host:
+## Docker
 
 ```bash
-docker build -t spreadsheet-qa .
+docker build -t tablebeam .
 docker run --rm -p 8501:8501 \
   --add-host=host.docker.internal:host-gateway \
-  -e OLLAMA_HOST=http://host.docker.internal:11434 \
-  -v spreadsheet-qa-data:/data \
-  spreadsheet-qa
+  -e LLM_BASE_URL=http://host.docker.internal:1234/v1 \
+  tablebeam
 ```
 
-The image does not package Ollama models. This keeps image builds predictable and makes the local-model boundary explicit.
+Start LM Studio on the host first. The container runs as a non-root user and does not package models or persistent data.
 
-## Tests and checks
+## Development
 
 ```bash
 pytest -q
@@ -77,21 +104,10 @@ python -m py_compile src/*.py
 bash -n start.sh
 ```
 
-The deterministic ingestion, profiling, Google Sheets parsing, and citation formatting tests run without Ollama or Chroma. A full answer smoke run additionally needs the Python dependencies, a running Ollama server, and both models installed.
+The tests use fake provider responses, so they do not require LM Studio or Ollama.
 
-## Privacy and remaining risks
+## Privacy
 
-- CSV data and local model requests stay on the configured machine by default.
-- A Google Sheets URL downloads data from Google; Pinecone and Kubernetes material remain optional deployment paths and are not used by the local app.
-- Chroma persists embeddings under `VECTOR_DB_PATH` (default `./chroma_db_clients`); protect that directory like the source CSV.
-- The assistant is retrieval-grounded but still generative. Verify important totals against the source rows.
-- Large spreadsheets may need a future structured-analysis path for exact aggregations instead of relying on top-k semantic retrieval.
+CSV data stays local. A Google Sheets URL is the explicit network path. Tablebeam sends only the selected rows and deterministic profile to the configured model endpoint; check that server's own logging and retention settings for stricter privacy requirements.
 
-## Next release path
-
-1. Add deterministic dataframe operations for sums, filters, grouping, and date ranges.
-2. Add an explicit source/session model so multiple datasets can be served safely by the API.
-3. Add end-to-end tests with a mocked Ollama endpoint and a small Chroma fixture.
-4. Add authentication and a deployment-specific privacy review before exposing the API beyond localhost.
-
-MIT License.
+MIT licensed. See [LICENSE](LICENSE).
