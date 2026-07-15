@@ -3,8 +3,7 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    OLLAMA_HOST=http://host.docker.internal:11434 \
-    VECTOR_DB_PATH=/data/chroma_db_clients
+    LLM_BASE_URL=http://host.docker.internal:1234/v1
 
 WORKDIR /app
 
@@ -16,8 +15,7 @@ COPY src/ /app/src/
 COPY sample_data.csv README.md /app/
 
 RUN useradd --create-home --uid 1000 appuser \
-    && mkdir -p /data/chroma_db_clients \
-    && chown -R appuser:appuser /app /data
+    && chown -R appuser:appuser /app
 
 USER appuser
 EXPOSE 8501

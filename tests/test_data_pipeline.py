@@ -29,7 +29,7 @@ def test_profile_contains_actionable_aggregate_facts():
 
 def test_load_data_rejects_missing_files():
     with pytest.raises(DataValidationError, match="not found"):
-        load_data("/tmp/definitely-not-a-client-tracker-file.csv")
+        load_data("/tmp/definitely-not-a-tablebeam-file.csv")
 
 
 def test_demo_dataset_profiles_date_like_columns():

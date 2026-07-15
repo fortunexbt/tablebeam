@@ -1,28 +1,17 @@
-# Google Sheets guide
+# Tablebeam + Google Sheets
 
-The Streamlit app can load a public Google Sheet through its CSV export endpoint. The sheet must be shared as **Anyone with the link can view**.
+Tablebeam can load a public Google Sheet through Google's CSV export endpoint.
 
-## Use the app
+1. In Google Sheets, choose **Share → Anyone with the link → Viewer**.
+2. Start Tablebeam with `./start.sh`.
+3. Choose **Google Sheet** in the sidebar, paste the full URL, and click **Load data**.
 
-```bash
-./start.sh
-```
-
-In the sidebar, choose **Google Sheets URL**, paste a URL such as:
+URLs with a tab identifier work:
 
 ```text
-https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit#gid=123
+https://docs.google.com/spreadsheets/d/SHEET_ID/edit#gid=123
 ```
 
-The app validates the URL, downloads the selected tab as CSV, profiles the result, and indexes it locally. It supports a full edit URL, a URL with `gid`, or a plain sheet ID.
+Tablebeam validates the downloaded table, shows its profile and preview, then performs local row search. It does not send the entire sheet to the model—only the selected rows and aggregate profile are included in the request.
 
-## Troubleshooting
-
-- **Access denied or HTML returned:** make the sheet publicly viewable and retry.
-- **Invalid URL:** use the full `docs.google.com/spreadsheets/d/...` URL or a plain sheet ID.
-- **Stale results:** use **Clear local cache** in the sidebar, then load the sheet again.
-- **Large or malformed data:** check the header row, remove empty trailing ranges, and keep the source under the app's 250,000-row/100 MB safety limits.
-
-## Privacy
-
-Google Sheets is the explicit network path: the selected sheet is downloaded from Google. After download, validation, embeddings, and local model inference run on the configured machine. Protect the local Chroma directory because it contains embeddings and source metadata.
+If access fails, confirm the sharing setting and retry. Google Sheets is the explicit network path; CSV loading and model calls remain on the configured machine.
