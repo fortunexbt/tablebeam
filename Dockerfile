@@ -12,6 +12,7 @@ RUN python -m pip install --upgrade pip --disable-pip-version-check \
     && python -m pip install -r /app/src/requirements.txt --disable-pip-version-check
 
 COPY src/ /app/src/
+COPY assets/ /app/assets/
 COPY sample_data.csv README.md /app/
 
 RUN useradd --create-home --uid 1000 appuser \
@@ -20,4 +21,7 @@ RUN useradd --create-home --uid 1000 appuser \
 USER appuser
 EXPOSE 8501
 
-CMD ["streamlit", "run", "src/app.py", "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3)"
+
+CMD ["streamlit", "run", "src/app.py", "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true", "--theme.base=light"]
