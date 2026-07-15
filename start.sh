@@ -12,11 +12,12 @@ SKIP_INSTALL=0
 
 usage() {
   cat <<'EOF'
-Usage: ./start.sh [--demo] [--lm-studio|--ollama] [--skip-install]
+Usage: ./start.sh [--demo] [--lm-studio|--ollama] [--start-server] [--skip-install]
 
   --demo          Load the included sample_data.csv automatically.
   --lm-studio     Use LM Studio at http://localhost:1234/v1 (default).
   --ollama        Use Ollama's OpenAI-compatible API at http://localhost:11434/v1.
+  --start-server  Ask Tablebeam to start the selected local provider on launch.
   --skip-install  Reuse the current .venv without installing packages.
 
 Start the selected local server yourself, then this command launches the web UI.
@@ -26,8 +27,9 @@ EOF
 for arg in "$@"; do
   case "$arg" in
     --demo) export START_WITH_DEMO=1 ;;
-    --lm-studio) export LLM_BASE_URL="${LLM_BASE_URL:-http://localhost:1234/v1}" ;;
-    --ollama) export LLM_BASE_URL="${LLM_BASE_URL:-http://localhost:11434/v1}" ;;
+    --lm-studio) export LLM_PROVIDER="LM Studio"; export LLM_BASE_URL="${LLM_BASE_URL:-http://localhost:1234/v1}" ;;
+    --ollama) export LLM_PROVIDER="Ollama"; export LLM_BASE_URL="${LLM_BASE_URL:-http://localhost:11434/v1}" ;;
+    --start-server|--start-model) export AUTO_START_PROVIDER=1 ;;
     --skip-install) SKIP_INSTALL=1 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; usage >&2; exit 2 ;;
@@ -56,7 +58,14 @@ if [[ "$SKIP_INSTALL" -eq 0 ]] && ! python -c 'import pandas, requests, streamli
   python -m pip install -r src/requirements.txt --disable-pip-version-check
 fi
 
-export LLM_BASE_URL="${LLM_BASE_URL:-http://localhost:1234/v1}"
+export LLM_PROVIDER="${LLM_PROVIDER:-LM Studio}"
+if [[ -z "${LLM_BASE_URL:-}" ]]; then
+  if [[ "$LLM_PROVIDER" == "Ollama" ]]; then
+    export LLM_BASE_URL="http://localhost:11434/v1"
+  else
+    export LLM_BASE_URL="http://localhost:1234/v1"
+  fi
+fi
 echo "Starting Tablebeam at http://localhost:8501"
 echo "Local model endpoint: $LLM_BASE_URL"
-exec streamlit run src/app.py --server.headless false --theme.base=dark
+exec streamlit run src/app.py --server.headless false --theme.base=light

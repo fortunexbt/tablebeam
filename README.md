@@ -31,6 +31,14 @@ Tablebeam is a small, private-by-default web app for CSV files and public Google
 
 The launcher creates `.venv`, installs the small dependency set when needed, and opens <http://localhost:8501>. The demo uses `sample_data.csv`; upload your own CSV or paste a public Google Sheets URL in the sidebar.
 
+To have Tablebeam attempt to start the selected local provider on launch:
+
+```bash
+./start.sh --demo --start-server
+```
+
+This uses LM Studio's `lms` CLI or Ollama's `ollama serve` when available. It never installs software or downloads model weights without an explicit model action.
+
 Windows:
 
 ```bat
@@ -56,6 +64,8 @@ export LLM_MODEL=your-loaded-model
 ```
 
 LM Studio and Ollama normally need no API key. If your server requires one, set `LLM_API_KEY` or enter it in the sidebar.
+
+The sidebar now exposes the provider state, discovered local models, a model selector, **Start server**, **Refresh**, and **Load model** controls. For LM Studio, it uses `lms ls`, `lms ps`, `lms server start`, and `lms load`. For Ollama, it uses `/api/tags`, `ollama serve`, and `ollama pull`. `--start-model` remains accepted as a backwards-compatible alias for `--start-server`.
 
 ## How it works
 
@@ -95,6 +105,7 @@ docker run --rm -p 8501:8501 \
 ```
 
 Start LM Studio on the host first. The container runs as a non-root user and does not package models or persistent data.
+The image includes a Streamlit health check at `/_stcore/health`.
 
 ## Development
 
