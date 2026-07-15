@@ -1,88 +1,28 @@
-# Google Sheets Integration Guide
+# Google Sheets guide
 
-This guide explains how to use Google Sheets as a data source for the Spreadsheet Q&A Assistant.
+The Streamlit app can load a public Google Sheet through its CSV export endpoint. The sheet must be shared as **Anyone with the link can view**.
 
-## Prerequisites
-
-- Google account
-- Google Sheet with data (must be publicly accessible)
-
-## Making Your Sheet Public
-
-1. Open your Google Sheet
-2. Click "Share" button
-3. Change access to "Anyone with the link can view"
-4. Copy the sharing link
-
-## Supported URL Formats
-
-The assistant accepts Google Sheets in several formats:
+## Use the app
 
 ```bash
-# Full URL
-python src/chat_interface.py "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
-
-# With specific sheet/tab
-python src/chat_interface.py "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit#gid=123"
-
-# Just the ID
-python src/chat_interface.py "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
+./start.sh
 ```
 
-## Usage Methods
+In the sidebar, choose **Google Sheets URL**, paste a URL such as:
 
-### 1. Command Line Argument
-```bash
-python src/chat_interface.py "YOUR_GOOGLE_SHEETS_URL"
+```text
+https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit#gid=123
 ```
 
-### 2. Environment Variable
-```bash
-export CLIENT_DATA_SOURCE="YOUR_GOOGLE_SHEETS_URL"
-python src/chat_interface.py
-```
-
-### 3. Interactive Prompt
-```bash
-python src/chat_interface.py
-# Then enter the URL when prompted
-```
-
-## Data Refresh Options
-
-When switching between different sheets or updating data:
-
-```bash
-# Clear all existing data before loading
-python src/chat_interface.py --clear
-
-# Force refresh with new data
-python src/chat_interface.py --force-refresh
-```
+The app validates the URL, downloads the selected tab as CSV, profiles the result, and indexes it locally. It supports a full edit URL, a URL with `gid`, or a plain sheet ID.
 
 ## Troubleshooting
 
-### Common Issues
+- **Access denied or HTML returned:** make the sheet publicly viewable and retry.
+- **Invalid URL:** use the full `docs.google.com/spreadsheets/d/...` URL or a plain sheet ID.
+- **Stale results:** use **Clear local cache** in the sidebar, then load the sheet again.
+- **Large or malformed data:** check the header row, remove empty trailing ranges, and keep the source under the app's 250,000-row/100 MB safety limits.
 
-1. **"Access Denied" Error**
-   - Ensure your sheet is set to "Anyone with the link can view"
-   - Check the URL is correctly formatted
+## Privacy
 
-2. **"Invalid Sheet ID" Error**
-   - Verify the sheet ID in your URL
-   - Try using the full URL instead of just the ID
-
-3. **Data Not Updating**
-   - Use `--force-refresh` flag to reload data
-   - Or use `--clear` to completely reset the vector store
-
-## Best Practices
-
-- Keep sheets reasonably sized (under 10,000 rows for best performance)
-- Use clear column headers
-- Avoid complex formulas that might not export well
-- Consider using specific sheet tabs for different datasets
-
-## Privacy Note
-
-When using Google Sheets, the data is downloaded locally and processed on your machine. No data is sent to external services (unless using cloud deployment mode with Pinecone).
+Google Sheets is the explicit network path: the selected sheet is downloaded from Google. After download, validation, embeddings, and local model inference run on the configured machine. Protect the local Chroma directory because it contains embeddings and source metadata.
