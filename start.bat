@@ -27,11 +27,18 @@ for %%A in (%*) do (
   if "%%A"=="--ollama" set "LLM_PROVIDER=Ollama"
 )
 
-if not exist ".venv\Scripts\python.exe" %PYTHON% -m venv .venv
+if not exist ".venv\Scripts\python.exe" (
+  echo Creating Python environment in .venv...
+  %PYTHON% -m venv .venv
+)
 call .venv\Scripts\activate.bat
 python -c "import pandas, requests, streamlit" >nul 2>&1 || (
-  python -m pip install --upgrade pip --disable-pip-version-check
-  python -m pip install -r src\requirements.txt --disable-pip-version-check
+  echo Installing Python dependencies (first run; this can take a minute)...
+  python -m pip install -r src\requirements.txt --disable-pip-version-check --no-input --default-timeout=30 --retries=3 --prefer-binary || (
+    echo Dependency installation failed. Check your network connection and try again.
+    exit /b 1
+  )
+  echo Dependencies ready.
 )
 
 echo Starting Tablebeam at http://localhost:8501

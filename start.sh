@@ -48,14 +48,27 @@ if sys.version_info < (3, 10):
 PY
 
 if [[ ! -d "$VENV_DIR" ]]; then
+  echo "Creating Python environment in $VENV_DIR..."
   "$PYTHON_BIN" -m venv "$VENV_DIR"
 fi
 # shellcheck disable=SC1091
 source "$VENV_DIR/bin/activate"
 
-if [[ "$SKIP_INSTALL" -eq 0 ]] && ! python -c 'import pandas, requests, streamlit' >/dev/null 2>&1; then
-  python -m pip install --upgrade pip --disable-pip-version-check
-  python -m pip install -r src/requirements.txt --disable-pip-version-check
+if ! python -c 'import pandas, requests, streamlit' >/dev/null 2>&1; then
+  if [[ "$SKIP_INSTALL" -eq 1 ]]; then
+    echo "Dependencies are missing. Rerun without --skip-install to install them." >&2
+    exit 1
+  fi
+  echo "Installing Python dependencies (first run; this can take a minute)..."
+  PIP_FLAGS=(--disable-pip-version-check --no-input --default-timeout=30 --retries=3 --prefer-binary)
+  if [[ "${TABLEBEAM_PIP_VERBOSE:-0}" == "1" ]]; then
+    PIP_FLAGS+=(--verbose)
+  fi
+  if ! python -m pip install -r src/requirements.txt "${PIP_FLAGS[@]}"; then
+    echo "Dependency installation failed. Try again with: ./.venv/bin/python -m pip install -r src/requirements.txt --verbose" >&2
+    exit 1
+  fi
+  echo "Dependencies ready."
 fi
 
 export LLM_PROVIDER="${LLM_PROVIDER:-LM Studio}"

@@ -29,7 +29,9 @@ Tablebeam is a small, private-by-default web app for CSV files and public Google
    ./start.sh --demo
    ```
 
-The launcher creates `.venv`, installs the small dependency set when needed, and opens <http://localhost:8501>. The demo uses `sample_data.csv`; upload your own CSV or paste a public Google Sheets URL in the sidebar.
+The launcher creates `.venv`, installs the small dependency set when needed, and opens <http://localhost:8501>. The first install prints progress and uses bounded retries so a network problem fails clearly instead of appearing frozen. The demo uses `sample_data.csv`; upload your own CSV or paste a public Google Sheets URL in the sidebar.
+
+For extra installer diagnostics, use `TABLEBEAM_PIP_VERBOSE=1 ./start.sh --demo`.
 
 To have Tablebeam attempt to start the selected local provider on launch:
 
