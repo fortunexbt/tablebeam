@@ -98,6 +98,17 @@ It exposes `/health`, `/ready`, and `POST /api/v1/query`. It never downloads a m
 
 ## Docker
 
+Run the published multi-architecture image:
+
+```bash
+docker run --rm -p 8501:8501 \
+  --add-host=host.docker.internal:host-gateway \
+  -e LLM_BASE_URL=http://host.docker.internal:1234/v1 \
+  ghcr.io/fortunexbt/tablebeam:2.0.0
+```
+
+Or build it locally:
+
 ```bash
 docker build -t tablebeam .
 docker run --rm -p 8501:8501 \
