@@ -13,6 +13,7 @@ RUN python -m pip install --upgrade pip --disable-pip-version-check \
 
 COPY src/ /app/src/
 COPY assets/ /app/assets/
+COPY .streamlit/ /app/.streamlit/
 COPY sample_data.csv README.md /app/
 
 RUN useradd --create-home --uid 1000 appuser \

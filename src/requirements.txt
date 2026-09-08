@@ -3,4 +3,5 @@ streamlit>=1.40,<2
 pandas>=2.0,<4
 requests>=2.31,<3
 fastapi>=0.115,<1
+pydantic>=2,<3
 uvicorn>=0.35,<1
