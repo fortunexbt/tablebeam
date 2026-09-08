@@ -7,19 +7,28 @@ started and keeps the privacy-sensitive part of the application easy to test.
 
 from __future__ import annotations
 
+import csv
 import hashlib
-import os
+import re
+from collections import Counter
 from dataclasses import dataclass, asdict
+from io import StringIO
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any, Optional
 
 import pandas as pd
 
-from gsheet_loader import extract_sheet_id, load_gsheet_as_csv
-
-
 DEFAULT_MAX_ROWS = 250_000
 DEFAULT_MAX_BYTES = 100 * 1024 * 1024
+
+# pandas' default CSV missing-value spellings. Integer dtype selection must
+# ignore the same markers as the value parser, without treating whitespace as
+# a missing cell. Explicit dtypes avoid signed-minimum/unsigned inference bugs.
+_CSV_MISSING_VALUES = {
+    "", "#N/A", "#N/A N/A", "#NA", "-1.#IND", "-1.#QNAN", "-NaN", "-nan",
+    "1.#IND", "1.#QNAN", "<NA>", "N/A", "NA", "NULL", "NaN", "None", "n/a", "nan", "null",
+}
+_INTEGER_TOKEN = re.compile(r"[+-]?[0-9]+")
 
 
 class DataValidationError(ValueError):
@@ -88,7 +97,124 @@ def normalize_dataframe(
     if cleaned.empty:
         raise DataValidationError(f"{source_label} has no non-empty rows.")
 
+    # pandas infers boolean CSV columns with blanks as object dtype. Retain
+    # their boolean meaning so typed filtering also works with missing cells.
+    for column in cleaned.columns:
+        values = cleaned[column].dropna()
+        if cleaned[column].dtype == object and not values.empty and values.map(lambda value: isinstance(value, bool)).all():
+            cleaned[column] = cleaned[column].astype("boolean")
+
     return cleaned
+
+
+def parse_csv_bytes(
+    content: bytes,
+    *,
+    max_rows: int = DEFAULT_MAX_ROWS,
+    max_bytes: int = DEFAULT_MAX_BYTES,
+    source_label: str = "CSV file",
+) -> pd.DataFrame:
+    """Validate the original CSV before pandas can rename or discard fields.
+
+    The byte and record limits are checked before constructing a dataframe.
+    Pandas still performs its usual value and missing-value inference, but only
+    after every record has been checked against the original header width.
+    """
+
+    if len(content) > max_bytes:
+        raise DataValidationError(
+            f"{source_label} exceeds the safe limit of "
+            f"{max_bytes / (1024 * 1024):g} MB."
+        )
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise DataValidationError("CSV must be UTF-8 encoded.") from exc
+    if "\x00" in text:
+        raise DataValidationError("CSV contains null bytes. Export it as UTF-8 text.")
+
+    # The csv module's default per-field ceiling is lower than pandas'. The
+    # complete input is already bounded, so allow cells up to that same limit.
+    csv.field_size_limit(max(csv.field_size_limit(), max_bytes))
+    stream = StringIO(text, newline="")
+    reader = csv.reader(stream, strict=True)
+    headers: Optional[list[str]] = None
+    integer_columns: list[bool] = []
+    integer_bounds: list[Optional[tuple[int, int]]] = []
+    row_count = 0
+    try:
+        while True:
+            record_start = stream.tell()
+            try:
+                record = next(reader)
+            except StopIteration:
+                break
+            # Match pandas' handling of genuinely blank physical records.
+            # Quoted empty cells remain records and must have the right width.
+            if not text[record_start : stream.tell()].strip(" \t\r\n"):
+                continue
+            if headers is None:
+                headers = [_clean_column_name(value, index) for index, value in enumerate(record)]
+                duplicates = [name for name, count in Counter(headers).items() if count > 1]
+                if duplicates:
+                    raise DataValidationError(
+                        "Duplicate column names are ambiguous: " + ", ".join(duplicates)
+                    )
+                integer_columns = [True] * len(headers)
+                integer_bounds = [None] * len(headers)
+                continue
+            if len(record) != len(headers):
+                raise DataValidationError(
+                    f"CSV record ending on line {reader.line_num} has {len(record)} fields; "
+                    f"the header has {len(headers)}. Check missing separators or quoted commas."
+                )
+            row_count += 1
+            if row_count > max_rows:
+                raise DataValidationError(
+                    f"{source_label} exceeds the safe limit of {max_rows:,} rows."
+                )
+            for index, value in enumerate(record):
+                if not integer_columns[index] or value in _CSV_MISSING_VALUES:
+                    continue
+                if not _INTEGER_TOKEN.fullmatch(value.strip()):
+                    integer_columns[index] = False
+                    continue
+                try:
+                    integer = int(value)
+                except ValueError:
+                    # Extremely long numeric-looking strings can exceed
+                    # Python's integer digit ceiling; leave them to pandas.
+                    integer_columns[index] = False
+                    continue
+                bounds = integer_bounds[index]
+                integer_bounds[index] = (
+                    (integer, integer) if bounds is None
+                    else (min(bounds[0], integer), max(bounds[1], integer))
+                )
+    except csv.Error as exc:
+        raise DataValidationError(f"Could not read CSV near line {reader.line_num}: {exc}") from exc
+
+    if not headers:
+        raise DataValidationError(f"{source_label} has no columns.")
+    integer_dtypes = {}
+    for index, bounds in enumerate(integer_bounds):
+        if integer_columns[index] and bounds is not None:
+            minimum, maximum = bounds
+            integer_dtypes[index] = (
+                "Int64" if -(2**63) <= minimum and maximum < 2**63
+                else "UInt64" if 0 <= minimum and maximum < 2**64
+                else "string"
+            )
+    try:
+        dataframe = pd.read_csv(
+            StringIO(text), encoding="utf-8-sig", on_bad_lines="error", nrows=max_rows + 1,
+            # Missing cells must not force exact integers through float64.
+            dtype_backend="numpy_nullable",
+            dtype=integer_dtypes,
+        )
+    except (pd.errors.ParserError, ValueError) as exc:
+        raise DataValidationError(f"Could not read CSV: {exc}") from exc
+    return normalize_dataframe(dataframe, max_rows=max_rows, source_label=source_label)
 
 
 def profile_dataframe(df: pd.DataFrame) -> DataProfile:
@@ -163,6 +289,10 @@ def load_data(
 ) -> pd.DataFrame:
     """Load a local CSV or a public Google Sheet, then validate it."""
 
+    # The sheet loader shares this module's strict CSV parser. Import only at
+    # the source boundary so either module can also be imported independently.
+    from gsheet_loader import extract_sheet_id, load_gsheet_as_csv
+
     if not source or not str(source).strip():
         raise DataValidationError("Choose a CSV file or enter a Google Sheets URL.")
 
@@ -171,12 +301,10 @@ def load_data(
     if source.startswith(("http://", "https://")):
         if not sheet_id or "docs.google.com/spreadsheets" not in source:
             raise DataValidationError("Only Google Sheets URLs are supported for remote sources.")
-        df = load_gsheet_as_csv(source)
-        return normalize_dataframe(df, max_rows=max_rows, source_label="Google Sheet")
+        return load_gsheet_as_csv(source, max_rows=max_rows, max_bytes=max_bytes)
 
     if sheet_id and not Path(source).exists():
-        df = load_gsheet_as_csv(source)
-        return normalize_dataframe(df, max_rows=max_rows, source_label="Google Sheet")
+        return load_gsheet_as_csv(source, max_rows=max_rows, max_bytes=max_bytes)
 
     path = Path(source).expanduser()
     if not path.is_file():
@@ -190,12 +318,11 @@ def load_data(
         raise DataValidationError("Please provide a CSV file.")
 
     try:
-        df = pd.read_csv(path, encoding="utf-8-sig", on_bad_lines="error")
-    except UnicodeDecodeError as exc:
-        raise DataValidationError("CSV must be UTF-8 encoded.") from exc
-    except (pd.errors.ParserError, OSError, ValueError) as exc:
+        with path.open("rb") as handle:
+            content = handle.read(max_bytes + 1)
+    except OSError as exc:
         raise DataValidationError(f"Could not read CSV: {exc}") from exc
-    return normalize_dataframe(df, max_rows=max_rows, source_label="CSV file")
+    return parse_csv_bytes(content, max_rows=max_rows, max_bytes=max_bytes)
 
 
 def source_fingerprint(source: str, df: Optional[pd.DataFrame] = None) -> str:

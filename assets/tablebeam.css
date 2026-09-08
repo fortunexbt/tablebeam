@@ -1,0 +1,50 @@
+:root{--tb-bg:#f7f8fa;--tb-white:#fff;--tb-text:#182334;--tb-muted:#667085;--tb-line:#e1e6ef;--tb-blue:#315cf5}
+.stApp{background:var(--tb-bg);color:var(--tb-text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.stApp h1,.stApp h2,.stApp h3,.stApp h4,.stApp p,.stApp label{color:var(--tb-text);font-family:inherit}
+[data-testid="stHeader"],[data-testid="stSidebar"]{display:none}
+.block-container{max-width:980px;padding:2.2rem 2rem 4rem}
+[data-testid="stCaptionContainer"]{opacity:1}
+[data-testid="stCaptionContainer"] p{color:var(--tb-muted);font-size:.8rem;line-height:1.55}
+.tb-brand{display:flex;align-items:center;gap:.65rem;font:700 1.25rem/2.2 system-ui,sans-serif;letter-spacing:-.04em;margin-bottom:2.1rem}
+.tb-brand span{display:grid;place-items:center;background:var(--tb-blue);border-radius:9px;width:33px;height:33px;font-size:1.55rem;color:#fff}
+.tb-landing-title{font:650 clamp(2.5rem,5.5vw,3.7rem)/1.08 system-ui,sans-serif!important;letter-spacing:-.055em!important;padding:0!important;margin:1.4rem 0 1.1rem!important}
+.tb-intro{font-size:1.05rem;color:var(--tb-muted)!important;margin-bottom:1.6rem}
+.st-key-import_card{max-width:650px}
+[data-testid="stFileUploader"] section{background:var(--tb-white);border:1.5px dashed #aab9db;border-radius:12px;min-height:145px;padding:1.5rem}
+.tb-file{font-size:1rem;font-weight:600;overflow-wrap:anywhere;margin-top:.2rem}
+.tb-question-title{font:600 clamp(1.6rem,3.8vw,2.2rem)/1.2 system-ui,sans-serif!important;letter-spacing:-.045em!important;margin:1.2rem 0 .7rem!important;padding:0!important}
+.stButton button,[data-testid="stFormSubmitButton"] button,[data-testid="stDownloadButton"] button{min-height:2.7rem;border:1px solid var(--tb-line);border-radius:8px;background:var(--tb-white);color:var(--tb-text);font-weight:550}
+.stButton button p,[data-testid="stFormSubmitButton"] button p,[data-testid="stDownloadButton"] button p{color:inherit;font-size:.82rem;font-weight:550}
+.stButton button:hover,[data-testid="stDownloadButton"] button:hover{color:var(--tb-blue);border-color:#a1b4f8;background:#f4f6ff}
+button[kind="primary"],button[kind="primaryFormSubmit"]{background:var(--tb-blue)!important;border-color:var(--tb-blue)!important;color:#fff!important}
+button[kind="primary"] p,button[kind="primaryFormSubmit"] p{color:#fff!important}
+button:focus-visible{outline:3px solid #94aaf8!important;outline-offset:3px}
+[data-testid="stTextInput"] input{background:var(--tb-white);color:var(--tb-text);min-height:2.7rem;font-size:.93rem}
+[data-testid="stTextInput"]>div{border-radius:8px}
+.st-key-suggestions{margin-top:-.5rem;margin-bottom:.85rem}
+.st-key-suggestions button{border:1px solid #dce3f1;background:#eef2fa;min-height:2.45rem}
+.st-key-suggestions button p{font-size:.76rem;font-weight:500}
+[data-testid="stExpander"]{border:1px solid var(--tb-line);border-radius:9px;background:transparent}
+[data-testid="stExpander"] summary p{font-size:.85rem;font-weight:500}
+.st-key-answer_card,.st-key-ai_request{background:var(--tb-white);border:1px solid var(--tb-line)!important;border-radius:14px!important;padding:1.2rem 1.4rem;margin:.5rem 0 1rem;box-shadow:0 4px 20px #18233404}
+.st-key-answer_card h2,.st-key-answer_card h3,.st-key-ai_request h3{font-size:1.35rem;font-weight:600;letter-spacing:-.035em;padding-top:.3rem}
+.st-key-answer_card [data-testid="stMetric"]{background:transparent;padding:.2rem 0 .6rem}
+.st-key-answer_card [data-testid="stMetricValue"]{font-size:clamp(2.4rem,5vw,3.8rem);font-weight:600;letter-spacing:-.055em;overflow-wrap:anywhere}
+.st-key-answer_card [data-testid="stMetricLabel"]{display:none}
+.st-key-answer_card [data-testid="stExpander"]{border:0;border-top:1px solid var(--tb-line);border-radius:0}
+[data-testid="stDataFrame"]{border:1px solid var(--tb-line);border-radius:6px;overflow:hidden}
+[data-testid="stDialog"] h2{font-size:1.4rem;letter-spacing:-.03em}
+[data-testid="stAlert"]{border-radius:8px}
+@media(max-width:640px){
+ .block-container{padding:1.4rem 1rem 3rem}.tb-brand{margin-bottom:1.1rem}.tb-landing-title{font-size:2.65rem!important}.tb-question-title{font-size:1.65rem!important}
+ .st-key-answer_card,.st-key-ai_request{padding:.7rem .7rem}.st-key-suggestions{margin-bottom:.3rem}
+ .st-key-suggestions [data-testid="stHorizontalBlock"]{gap:.4rem}
+ [data-testid="stFileUploader"] section{padding:1rem;min-height:120px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+.tb-brand span{line-height:1}
+@media(max-width:640px){
+ .st-key-app_header [data-testid="stHorizontalBlock"],.st-key-table_header [data-testid="stHorizontalBlock"]{display:grid;grid-template-columns:minmax(0,1fr) 106px;gap:.5rem}
+ .st-key-app_header [data-testid="stColumn"],.st-key-table_header [data-testid="stColumn"]{width:100%!important;min-width:0!important}
+ .st-key-app_header button,.st-key-table_header button{min-height:2.4rem}
+}

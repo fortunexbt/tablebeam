@@ -1,51 +1,61 @@
 # Tablebeam
 
-![Tablebeam banner](assets/tablebeam-banner.jpg)
+**Get answers from your spreadsheet.**
 
-**Ask a local model about your tables.**
-
-Tablebeam is a small, private-by-default web app for CSV files and public Google Sheets. It validates and profiles your table locally, retrieves the most relevant rows, and sends only that context to an OpenAI-compatible local model such as [LM Studio](https://lmstudio.ai/) or [Ollama](https://ollama.com/).
+Open a CSV, choose a question, and see the answer. Totals and comparisons run on your computer. Connect [LM Studio](https://lmstudio.ai/) or [Ollama](https://ollama.com/) when you want an AI interpretation.
 
 [![Tests](https://github.com/fortunexbt/tablebeam/actions/workflows/test.yml/badge.svg)](https://github.com/fortunexbt/tablebeam/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22d3ee.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-0f172a.svg)](https://www.python.org/)
 
-## Why Tablebeam
-
-- **One command:** launch a working demo without a database, embedding download, or model SDK.
-- **Local-first:** LM Studio is the default; Ollama and other OpenAI-compatible servers work too.
-- **Traceable:** answers include expandable source rows with `[Source N]` citations.
-- **Honest:** deterministic ingestion and row search stay separate from generative answers.
-- **Small:** Streamlit, pandas, requests, and an optional FastAPI wrapper.
-
-## Start in two minutes
-
-1. In LM Studio, download a chat model and start **Developer → Local Server**.
-2. Run Tablebeam:
-
-   ```bash
-   git clone https://github.com/fortunexbt/tablebeam.git
-   cd tablebeam
-   ./start.sh --demo
-   ```
-
-The launcher creates `.venv`, installs the small dependency set when needed, and opens <http://localhost:8501>. The first install prints progress and uses bounded retries so a network problem fails clearly instead of appearing frozen. The demo uses `sample_data.csv`; upload your own CSV or paste a public Google Sheets URL in the sidebar.
-
-For extra installer diagnostics, use `TABLEBEAM_PIP_VERBOSE=1 ./start.sh --demo`.
-
-To have Tablebeam attempt to start the selected local provider on launch:
+## Start
 
 ```bash
-./start.sh --demo --start-server
+git clone https://github.com/fortunexbt/tablebeam.git
+cd tablebeam
+./start.sh --demo
 ```
 
-This uses LM Studio's `lms` CLI or Ollama's `ollama serve` when available. It never installs software or downloads model weights without an explicit model action.
+The launcher creates `.venv`, checks installed dependency versions, installs or updates what is needed, and opens <http://localhost:8501>. Windows users can run `start.bat --demo`. No model or account is needed to try the example. Use `--skip-install` to check and run an existing environment without installing packages; missing or incompatible dependencies produce repair instructions.
 
-Windows:
+1. Choose a suggested question, such as **Annual revenue by status**, or type **What is the total annual revenue?**
+2. Read the number or chart, then **Download answer** if you want to keep it.
+3. Use **Change table** to open your own CSV. Uploading opens it immediately. A failed import keeps your current table intact.
 
-```bat
-start.bat --demo
-```
+A public Google Sheet can be loaded from **Use a Google Sheet instead**. Share it as “Anyone with the link” first; opening it fetches its contents from Google.
+
+## Ask a question
+
+Straightforward, unambiguous calculations work without AI:
+
+- `How many rows are there?`
+- `Total annual revenue`
+- `Average health score`
+- `Annual revenue by status`
+- `Count rows by owner`
+
+Use your table’s actual column names; underscores and dashes can be written as spaces. Sum, average, median, minimum, and maximum are supported. Common forms such as “What is the total …?”, “Show me …”, and “Calculate …” work too.
+
+The parser only accepts complete supported questions. It does not guess shortened column names, invent filters, or silently treat an ambiguous question as an exact calculation. Other wording offers an explicit **Ask AI** or **Connect AI** action.
+
+## When you need more control
+
+**Build a calculation** lets you choose the operation and columns directly, optionally comparing groups or limiting rows. Text conditions offer existing values where practical. Click **Calculate** when your choices are ready; changing a control does not silently change a completed answer.
+
+Each new question starts from the full table. A filter belongs to the calculation that created it, and that answer shows the condition and row coverage. The previous five completed answers are available under **Previous answers**. Switching between answers preserves them; changing or clearing the table resets its questions, calculations, and history.
+
+**How this was calculated** contains the exact operation, missing-value rules, result table, and row coverage. **View rows used** shows up to 50 rows and can export all contributing rows. **View data** previews the source and its quality notes.
+
+Count includes every selected row. Numeric operations ignore missing measures; entirely missing measures return “No values.” Missing group labels form their own group. The chart shows up to 20 groups, while the answer download includes all groups. Integer sums and integer filter thresholds preserve precision; charts omit integers beyond their precise numeric range, while result tables and downloads retain them. Floating-point calculations follow pandas arithmetic.
+
+Explicit answer/row downloads are UTF-8 BOM CSV and neutralize formula-like text with an apostrophe prefix. Source row numbers refer to the loaded table after empty rows are removed. CSV files, uploads, and Google Sheets imports require unique nonempty headers, consistent record widths, UTF-8, at most 100 MB, and at most 250,000 rows. Integer columns retain every digit, including when some cells are empty.
+
+## Connect AI only when you need it
+
+Open **AI settings**, choose LM Studio or Ollama, and click **Find local models**. Select a ready model, then return to your question and choose **Ask AI**. LM Studio reports which models are loaded; an unloaded model can be explicitly loaded. Ollama can use an installed model and loads it when asked. Tablebeam does not automatically download a model or turn unsupported wording into a generated answer.
+
+AI sees a retrieved row sample plus the table profile, not necessarily every record. Its answer shows coverage, and **Check the sources** contains the exact rows and profile supplied to the model. The Markdown download keeps that evidence. AI claims should be checked; use built-in calculations for exact numbers.
+
+For automatic provider startup, opt in with `./start.sh --demo --start-server`. This uses the installed provider CLI, never installs software, and accepts the older `--start-model` alias. Installer diagnostics are available with `TABLEBEAM_PIP_VERBOSE=1`.
 
 ## Use another local server
 
@@ -65,23 +75,9 @@ export LLM_MODEL=your-loaded-model
 ./start.sh
 ```
 
-LM Studio and Ollama normally need no API key. If your server requires one, set `LLM_API_KEY` or enter it in the sidebar.
+LM Studio and Ollama normally need no API key. If your server requires one, set `LLM_API_KEY` or enter it in **AI settings → Advanced settings**.
 
-The sidebar now exposes the provider state, discovered local models, a model selector, **Start server**, **Refresh**, and **Load model** controls. For LM Studio, it uses `lms ls`, `lms ps`, `lms server start`, and `lms load`. For Ollama, it uses `/api/tags`, `ollama serve`, and `ollama pull`. `--start-model` remains accepted as a backwards-compatible alias for `--start-server`.
-
-## How it works
-
-1. Validate headers, row limits, empty rows, and malformed CSV data.
-2. Show a compact profile: shape, column types, missing values, duplicates, and warnings.
-3. Rank rows with a deterministic lexical search — no vector database or embedding service.
-4. Send the profile, selected rows, and question to the local model.
-5. Display the answer beside the exact retrieved rows.
-
-For exact totals, joins, or complex grouping, use a dataframe or SQL workflow. Tablebeam is optimized for quick, inspectable questions over small-to-medium tables.
-
-## Google Sheets
-
-The sheet must be shared as **Anyone with the link → Viewer**. Paste its URL into the sidebar and click **Load data**. Google is the only external data fetch in the normal workflow; the downloaded table and model request stay on the configured machine.
+Open **AI settings → Find local models** to discover the selected server. Server address, API key, and a custom model ID are under **Advanced settings**. Configured `LLM_BASE_URL` and `LLM_MODEL` are preserved, and closing settings does not discard them. Discovery uses LM Studio's native model API or Ollama's `/api/tags` and `/api/ps`; compatible servers can fall back to `/v1/models`, which reports availability rather than loaded state. Explicit local start/load actions use `lms server start`, `lms load`, `ollama serve`, or `ollama pull`. For a server on another host, Tablebeam gives instructions to manage it there. `--start-model` remains accepted as a backwards-compatible alias for `--start-server`.
 
 ## Optional API
 
@@ -94,11 +90,11 @@ export LLM_MODEL=your-loaded-model
 python src/api_server.py
 ```
 
-It exposes `/health`, `/ready`, and `POST /api/v1/query`. It never downloads a model and remains unavailable for queries until `DATA_SOURCE` is set.
+It exposes `/health`, `/ready`, and `POST /api/v1/query` for model Q&A. It never downloads a model and remains unavailable for queries until `DATA_SOURCE` is set. The web interface’s built-in question parser and calculation builder are separate from this model-only endpoint.
 
 ## Docker
 
-Run the published multi-architecture image:
+Run the published multi-architecture release image (2.0.0 predates the unreleased interface changes below):
 
 ```bash
 docker run --rm -p 8501:8501 \
@@ -123,15 +119,20 @@ The image includes a Streamlit health check at `/_stcore/health`.
 ## Development
 
 ```bash
+python -m pip install -r requirements-dev.txt
 pytest -q
 python -m py_compile src/*.py
 bash -n start.sh
 ```
 
-The tests use fake provider responses, so they do not require LM Studio or Ollama.
+Tests cover CSV boundaries, conservative question parsing, exact calculations, safe result rendering, provider responses, FastAPI behavior, and complete Streamlit workflows. They use fake provider responses and require no LM Studio or Ollama. CI runs Python 3.10–3.12.
+
+See [the changelog](CHANGELOG.md) for the current changes.
 
 ## Privacy
 
-CSV data stays local. A Google Sheets URL is the explicit network path. Tablebeam sends only the selected rows and deterministic profile to the configured model endpoint; check that server's own logging and retention settings for stricter privacy requirements.
+CSV ingestion, built-in calculations, evidence previews, and exports run in the Tablebeam process. Loading a public Google Sheet fetches it from Google. **Ask AI** sends the question, selected rows, and deterministic profile to the configured endpoint. Use a local endpoint to keep that context on your machine; a remote endpoint receives it. Provider checks and explicit start/load actions contact the selected provider. No connection is probed automatically during normal exploration, and Streamlit usage telemetry is disabled in the project configuration.
+
+The table is session-scoped, not written to a database. Browser downloads are saved by you. Check your model server’s logging and retention settings for stricter privacy requirements.
 
 MIT licensed. See [LICENSE](LICENSE).
