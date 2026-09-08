@@ -1,484 +1,450 @@
-"""Tablebeam: an evidence-first local workspace for asking questions of tables."""
-
+"""A question-first interface for Tablebeam's local table tools."""
 from __future__ import annotations
 
-import base64
+from decimal import Decimal, InvalidOperation
+from html import escape
 import os
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
 
+from answer_view import display_result, render_answer
 from assistant_core import LocalTable, OpenAICompatibleClient, ProviderError
-from provider_control import ProviderController, ProviderState
-
+from provider_control import ProviderController, ProviderState, valid_server_address
+from question_actions import Calculation, friendly_column, parse_question, suggested_questions
+from table_analysis import FilterSpec, filter_dataframe, summarize_dataframe
 
 ROOT = Path(__file__).parent.parent
-DEMO_PATH = ROOT / "sample_data.csv"
-BANNER_PATH = ROOT / "assets" / "tablebeam-banner.jpg"
-PROVIDERS = {
-    "LM Studio": "http://localhost:1234/v1",
-    "Ollama": "http://localhost:11434/v1",
-}
-
-
-def inject_styles() -> None:
-    """Give the Streamlit primitives a deliberate signal-desk visual system."""
-
-    st.markdown(
-        """
-        <style>
-        :root {
-            --tb-paper: #f3f0e8;
-            --tb-white: #fffdf8;
-            --tb-ink: #111315;
-            --tb-muted: #5b605f;
-            --tb-line: rgba(17, 19, 21, .2);
-            --tb-blue: #2d43ff;
-            --tb-lime: #d7f25b;
-            --tb-orange: #ff704d;
-        }
-        .stApp { background: var(--tb-paper); color: var(--tb-ink); }
-        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
-        .stApp p, .stApp label, .stApp [data-testid="stMarkdownContainer"] { color: var(--tb-ink); }
-        .stApp [data-testid="stCaptionContainer"] p,
-        .stApp [data-testid="stWidgetLabel"] p,
-        .stApp [data-testid="stMarkdownContainer"] small { color: var(--tb-muted); }
-        .block-container { max-width: 1360px; padding: 1.35rem 3.2rem 5rem; }
-        [data-testid="stSidebar"], [data-testid="collapsedControl"] { display: none; }
-        [data-testid="stHeader"] { background: transparent; }
-        [data-testid="stDecoration"] { background: var(--tb-blue); height: 4px; }
-        [data-testid="stAppDeployButton"] { display: none; }
-        #MainMenu { visibility: hidden; }
-        [data-testid="stToolbar"] { opacity: .45; }
-        .tb-masthead { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 2px solid var(--tb-ink); padding: .45rem 0 .9rem; }
-        .tb-brand { display: flex; align-items: center; gap: .7rem; }
-        .tb-mark { display: grid; place-items: center; width: 2.15rem; height: 2.15rem; background: var(--tb-blue); color: var(--tb-lime); font-size: 1.3rem; transform: rotate(45deg); }
-        .tb-mark span { transform: rotate(-45deg); }
-        .tb-brand-name { font-size: .88rem; letter-spacing: .18em; font-weight: 900; line-height: 1; }
-        .tb-brand-sub { display: block; margin-top: .35rem; color: var(--tb-muted); font: 600 .58rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .14em; }
-        .tb-masthead-center { color: var(--tb-muted); font: 700 .64rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .18em; }
-        .tb-live { display: flex; align-items: center; gap: .5rem; font: 800 .64rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; }
-        .tb-live-dot { width: .55rem; height: .55rem; border-radius: 50%; background: var(--tb-orange); box-shadow: 0 0 0 4px rgba(255,112,77,.16); }
-        .tb-live-dot.ready { background: #2eae76; box-shadow: 0 0 0 4px rgba(46,174,118,.16); }
-        .tb-kicker { color: var(--tb-blue); font: 900 .66rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .16em; text-transform: uppercase; }
-        .tb-hero-title { max-width: 10ch; margin: .85rem 0 1.1rem; color: var(--tb-ink); font: 900 clamp(4.2rem, 9vw, 8.8rem)/.82 "Arial Narrow", "Avenir Next Condensed", "Helvetica Neue", sans-serif; letter-spacing: -.095em; text-transform: uppercase; }
-        .tb-hero-title em { color: var(--tb-blue); font-style: normal; }
-        .tb-hero-copy { max-width: 31rem; color: var(--tb-muted); font-size: 1.05rem; line-height: 1.55; }
-        .tb-hero-note { border-left: 4px solid var(--tb-orange); margin-top: 2rem; padding: .2rem 0 .25rem 1rem; font-size: .9rem; line-height: 1.45; }
-        .tb-visual { position: relative; overflow: hidden; min-height: 27rem; background: var(--tb-ink); border: 2px solid var(--tb-ink); box-shadow: 12px 12px 0 var(--tb-blue); }
-        .tb-visual img { width: 100%; height: 100%; min-height: 27rem; object-fit: cover; opacity: .78; mix-blend-mode: screen; filter: saturate(1.35) contrast(1.2); }
-        .tb-visual:before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(135deg, rgba(45,67,255,.5), transparent 42%, rgba(215,242,91,.22)); mix-blend-mode: screen; }
-        .tb-visual-grid { position: absolute; inset: 0; z-index: 2; background-image: linear-gradient(rgba(255,255,255,.13) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.13) 1px, transparent 1px); background-size: 2.2rem 2.2rem; mask-image: linear-gradient(to bottom, rgba(0,0,0,.95), transparent 80%); }
-        .tb-visual-label { position: absolute; z-index: 3; left: 1.25rem; bottom: 1.15rem; color: var(--tb-lime); font: 800 .68rem/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
-        .tb-loop { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 2px solid var(--tb-ink); border-bottom: 2px solid var(--tb-ink); margin-top: 4rem; }
-        .tb-loop-step { min-height: 7rem; padding: 1.1rem 1.2rem 1rem 0; border-right: 1px solid var(--tb-line); }
-        .tb-loop-step + .tb-loop-step { padding-left: 1.2rem; }
-        .tb-loop-step:last-child { border-right: 0; }
-        .tb-loop-number { color: var(--tb-orange); font: 900 .68rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; }
-        .tb-loop-title { margin: .75rem 0 .3rem; font-size: 1.15rem; font-weight: 850; letter-spacing: -.04em; }
-        .tb-loop-copy { color: var(--tb-muted); font-size: .85rem; line-height: 1.4; }
-        [data-testid="stExpander"] { border: 2px solid var(--tb-ink); border-radius: 0; background: var(--tb-ink); box-shadow: 7px 7px 0 var(--tb-lime); margin: 1.5rem 0 1.5rem; overflow: hidden; }
-        [data-testid="stExpander"] details:not([open]) { height: 3.1rem; overflow: hidden; }
-        [data-testid="stExpander"] summary p { color: var(--tb-lime) !important; font: 900 .7rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .14em; text-transform: uppercase; }
-        [data-testid="stExpander"] [data-testid="stWidgetLabel"] p,
-        [data-testid="stExpander"] [data-testid="stCaptionContainer"] p,
-        [data-testid="stExpander"] [data-testid="stMarkdownContainer"] p { color: #f4f2ea !important; }
-        [data-testid="stExpander"] [data-testid="stRadio"] label p { color: #f4f2ea !important; }
-        [data-testid="stExpander"] [data-testid="stWidgetLabel"] p { font-size: .73rem; font-weight: 800; letter-spacing: .04em; }
-        [data-testid="stExpander"] input, [data-testid="stExpander"] textarea,
-        [data-testid="stExpander"] [data-baseweb="select"] > div { background: #fffdf8 !important; color: var(--tb-ink) !important; border-color: rgba(255,255,255,.35) !important; border-radius: 0 !important; }
-        [data-testid="stExpander"] [data-testid="stAlert"] { border-radius: 0; }
-        [data-testid="stExpander"] .stButton > button { background: transparent; border-color: rgba(255,255,255,.5); color: #fffdf8; border-radius: 0; }
-        [data-testid="stExpander"] .stButton > button:hover { background: var(--tb-lime); color: var(--tb-ink); border-color: var(--tb-lime); }
-        .tb-deck-label { color: var(--tb-lime); font: 800 .63rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .15em; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,.24); padding-bottom: .55rem; margin: .4rem 0 1rem; }
-        .tb-status { display: flex; align-items: center; gap: .55rem; min-height: 2.65rem; padding: .65rem .8rem; background: rgba(215,242,91,.12); border: 1px solid rgba(215,242,91,.45); color: var(--tb-lime); font: 800 .7rem/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .04em; }
-        .tb-status.offline { background: rgba(255,112,77,.12); border-color: rgba(255,112,77,.5); color: #ff9d84; }
-        .tb-status-dot { width: .5rem; height: .5rem; flex: 0 0 auto; border-radius: 50%; background: currentColor; }
-        .tb-workspace-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem; border-bottom: 2px solid var(--tb-ink); padding-bottom: 1.2rem; }
-        .tb-workspace-title { margin: .65rem 0 .2rem; font: 900 clamp(2.5rem, 5vw, 5rem)/.88 "Arial Narrow", "Avenir Next Condensed", "Helvetica Neue", sans-serif; letter-spacing: -.08em; text-transform: uppercase; }
-        .tb-workspace-meta { color: var(--tb-muted); font: 600 .72rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .04em; }
-        .tb-signal-badge { min-width: 8.2rem; padding: .8rem; background: var(--tb-blue); color: #fff; text-align: right; }
-        .tb-signal-badge small { display: block; color: var(--tb-lime); font: 800 .59rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .1em; }
-        .tb-signal-badge strong { display: block; margin-top: .45rem; font-size: 1.25rem; letter-spacing: -.04em; }
-        .tb-section-title { margin: .6rem 0 .25rem; font: 900 clamp(2.4rem, 5vw, 5.4rem)/.86 "Arial Narrow", "Avenir Next Condensed", "Helvetica Neue", sans-serif; letter-spacing: -.08em; text-transform: uppercase; }
-        .tb-conversation-label { color: var(--tb-blue); font: 900 .65rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .15em; }
-        .tb-proof { border-left: 4px solid var(--tb-orange); padding: .2rem 0 .2rem 1rem; color: var(--tb-muted); font-size: .88rem; line-height: 1.5; }
-        div[data-testid="stMetric"] { background: var(--tb-white); border: 2px solid var(--tb-ink); border-radius: 0; padding: .85rem 1rem; box-shadow: 5px 5px 0 var(--tb-lime); }
-        div[data-testid="stMetricLabel"] { color: var(--tb-muted); font: 800 .65rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
-        div[data-testid="stMetricValue"] { color: var(--tb-ink); font-weight: 900; letter-spacing: -.06em; }
-        .stButton > button { min-height: 2.6rem; border: 2px solid var(--tb-ink); border-radius: 0; background: var(--tb-white); color: var(--tb-ink); font-weight: 800; transition: transform .16s ease, background .16s ease, box-shadow .16s ease; }
-        .stButton > button p { color: inherit !important; }
-        .stButton > button:hover { background: var(--tb-lime); border-color: var(--tb-ink); color: var(--tb-ink); transform: translate(-2px, -2px); box-shadow: 4px 4px 0 var(--tb-ink); }
-        button[kind="primary"] { background: var(--tb-blue) !important; color: #ffffff !important; border-color: var(--tb-blue) !important; }
-        button[kind="primary"]:hover { background: var(--tb-orange) !important; border-color: var(--tb-orange) !important; color: var(--tb-ink) !important; }
-        .stChatInput > div { border: 2px solid var(--tb-ink) !important; border-radius: 0 !important; background: var(--tb-white) !important; }
-        .stApp input, .stApp textarea { color: var(--tb-ink) !important; border-radius: 0 !important; }
-        [data-testid="stRadio"] label p { color: inherit !important; }
-        [data-testid="stTabs"] { border-bottom: 2px solid var(--tb-ink); }
-        [data-testid="stTabs"] button { color: var(--tb-muted); font: 800 .72rem/1 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; }
-        [data-testid="stTabs"] button[aria-selected="true"] { color: var(--tb-blue); }
-        [data-testid="stDataFrame"] { border: 2px solid var(--tb-ink); }
-        @media (max-width: 900px) {
-            .block-container { padding: 1rem 1.1rem 3rem; }
-            .tb-masthead-center { display: none; }
-            .tb-hero-title { max-width: 8ch; font-size: clamp(3.7rem, 16vw, 6.5rem); }
-            .tb-visual { min-height: 18rem; margin-top: 2rem; box-shadow: 7px 7px 0 var(--tb-blue); }
-            .tb-visual img { min-height: 18rem; }
-            .tb-loop { grid-template-columns: 1fr; }
-            .tb-loop-step, .tb-loop-step + .tb-loop-step { border-right: 0; border-bottom: 1px solid var(--tb-line); padding: 1rem 0; }
-            .tb-loop-step:last-child { border-bottom: 0; }
-            .tb-workspace-head { align-items: flex-start; flex-direction: column; gap: 1rem; }
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+PROVIDERS = {"LM Studio": "http://localhost:1234/v1", "Ollama": "http://localhost:11434/v1"}
+OPERATIONS = {"Total": "sum", "Average": "mean", "Median": "median", "Lowest value": "min", "Highest value": "max", "Number of rows": "count"}
 
 
 def setup_state() -> None:
-    configured_provider = os.getenv("LLM_PROVIDER", "LM Studio")
-    configured_url = os.getenv("LLM_BASE_URL") or PROVIDERS.get(configured_provider, PROVIDERS["LM Studio"])
+    provider = os.getenv("LLM_PROVIDER", "LM Studio")
+    provider = provider if provider in PROVIDERS else "LM Studio"
     defaults = {
-        "table": None,
-        "table_label": None,
-        "messages": [],
-        "queued_question": None,
-        "demo_loaded": False,
-        "provider_name": configured_provider if configured_provider in PROVIDERS else "LM Studio",
-        "provider_seen": None,
-        "server_url": configured_url,
-        "model_name": os.getenv("LLM_MODEL", "auto"),
-        "model_select": os.getenv("LLM_MODEL", "auto"),
-        "model_custom": "",
-        "api_key": os.getenv("LLM_API_KEY", ""),
-        "auto_start_attempted": False,
-        "provider_notice": None,
+        "table": None, "table_label": None, "demo_loaded": False,
+        "demo_bootstrapped": False, "answer": None, "answer_history": [],
+        "pending_question": None, "question_error": None, "import_error": None,
+        "show_importer": False, "show_ai_settings": False,
+        "import_completed": False,
+        "connection": {"provider": provider, "url": os.getenv("LLM_BASE_URL") or PROVIDERS[provider],
+                       "model": os.getenv("LLM_MODEL", "auto"), "api_key": os.getenv("LLM_API_KEY", "")},
+        "connection_state": None, "connection_notice": None, "auto_start_attempted": False,
+        "connection_revision": 0, "connection_action_failed": False,
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
 
 
-def set_table(table: LocalTable, label: str, *, demo: bool = False) -> None:
-    st.session_state.table = table
-    st.session_state.table_label = label
-    st.session_state.demo_loaded = demo
-    st.session_state.messages = []
+def set_table(table: LocalTable | None, label: str | None, *, demo: bool = False) -> None:
+    for key in list(st.session_state):
+        if key.startswith(("analysis_", "question_", "ask_", "preview_")):
+            del st.session_state[key]
+    st.session_state.update(table=table, table_label=label, demo_loaded=demo, answer=None,
+                            answer_history=[], pending_question=None, question_error=None,
+                            show_importer=False, import_error=None, messages=[])
 
 
 def load_demo() -> None:
-    set_table(LocalTable.from_source(str(DEMO_PATH)), "sample_data.csv", demo=True)
+    set_table(LocalTable.from_source(str(ROOT / "sample_data.csv")), "Sample accounts", demo=True)
 
 
-def clear_table() -> None:
-    st.session_state.table = None
-    st.session_state.table_label = None
-    st.session_state.demo_loaded = False
-    st.session_state.messages = []
+def load_upload(widget_key: str) -> None:
+    uploaded = st.session_state.get(widget_key)
+    if uploaded is not None:
+        try:
+            set_table(LocalTable.from_csv_bytes(uploaded.getvalue()), uploaded.name)
+            st.session_state.import_completed = True
+        except (ValueError, OSError) as exc:
+            st.session_state.import_error = str(exc)
 
 
-@st.cache_data(ttl=4, show_spinner=False)
-def get_provider_state(provider: str, base_url: str, api_key: str) -> ProviderState:
-    return ProviderController(provider, base_url, api_key=api_key).probe()
-
-
-def render_sources(sources: list[dict]) -> None:
-    if not sources:
-        return
-    with st.expander(f"Evidence · {len(sources)} retrieved rows", expanded=False):
-        st.caption("These are the exact rows sent to the local model.")
-        for source in sources:
-            st.markdown(f"**{source['citation']} · row {source['row_number']}**")
-            st.code(source["content"], language="text")
-
-
-def render_masthead(status: ProviderState) -> None:
-    state_label = "READY" if status.ready else ("ONLINE" if status.server_online else "OFFLINE")
-    state_class = "ready" if status.server_online else ""
-    st.markdown(
-        f'''<div class="tb-masthead">
-            <div class="tb-brand">
-                <span class="tb-mark"><span>✦</span></span>
-                <div><span class="tb-brand-name">TABLEBEAM</span><span class="tb-brand-sub">LOCAL SIGNAL DESK</span></div>
-            </div>
-            <div class="tb-masthead-center">DATA IN&nbsp;&nbsp;/&nbsp;&nbsp;SIGNAL OUT</div>
-            <div class="tb-live"><span class="tb-live-dot {state_class}"></span>{status.provider.upper()} · {state_label}</div>
-        </div>''',
-        unsafe_allow_html=True,
-    )
-
-
-def render_control_deck() -> tuple[OpenAICompatibleClient, ProviderState]:
-    with st.expander("Control deck · provider / model / table", expanded=False):
-        st.markdown('<div class="tb-deck-label">01 · Model signal</div>', unsafe_allow_html=True)
-        provider_name = st.radio("Provider", list(PROVIDERS), horizontal=True, key="provider_name", label_visibility="collapsed")
-        if st.session_state.provider_seen != provider_name:
-            st.session_state.server_url = PROVIDERS[provider_name]
-            st.session_state.model_name = "auto"
-            st.session_state.model_select = "auto"
-            st.session_state.model_custom = ""
-            st.session_state.provider_seen = provider_name
-        st.text_input("Server URL", key="server_url", help="LM Studio defaults to http://localhost:1234/v1")
-        st.text_input("API key", key="api_key", type="password", help="Usually blank for LM Studio and Ollama.")
-
-        controller = ProviderController(
-            provider_name,
-            st.session_state.server_url,
-            api_key=st.session_state.api_key,
-        )
-        state = get_provider_state(provider_name, st.session_state.server_url, st.session_state.api_key)
-
-        auto_start = os.getenv("AUTO_START_PROVIDER", os.getenv("AUTO_START_MODEL", "0")) == "1"
-        if auto_start and not st.session_state.auto_start_attempted:
-            st.session_state.auto_start_attempted = True
-            if not state.server_online:
-                result = controller.start_server()
-                st.session_state.provider_notice = result.output or result.error
-                get_provider_state.clear()
-                state = controller.probe()
-
-        status_text = f"READY · {len(state.loaded_models)} loaded" if state.ready else ("ONLINE · load a model" if state.server_online else "OFFLINE · start a local server")
-        status_class = "tb-status" if state.server_online else "tb-status offline"
-        st.markdown(f'<div class="{status_class}"><span class="tb-status-dot"></span>{status_text}</div>', unsafe_allow_html=True)
-        st.caption(state.message)
-
-        start_col, refresh_col = st.columns(2)
-        with start_col:
-            if st.button("Start server", use_container_width=True, key="start_provider"):
-                result = controller.start_server()
-                st.session_state.provider_notice = result.output or result.error
-                get_provider_state.clear()
-                st.rerun()
-        with refresh_col:
-            if st.button("Refresh", use_container_width=True, key="refresh_provider"):
-                get_provider_state.clear()
-                st.rerun()
-
-        model_options = ["auto"] + [model.model_id for model in state.models if model.model_id != "auto"]
-        custom_option = "Custom model ID…"
-        if st.session_state.model_name not in model_options and st.session_state.model_name != "auto":
-            st.session_state.model_select = custom_option
-            st.session_state.model_custom = st.session_state.model_name
-        elif st.session_state.model_select not in model_options and st.session_state.model_select != custom_option:
-            st.session_state.model_select = "auto"
-        selection = st.selectbox("Model", model_options + [custom_option], key="model_select")
-        if selection == custom_option:
-            st.text_input("Model ID", key="model_custom", placeholder="e.g. llama3.2:3b")
-            st.session_state.model_name = st.session_state.model_custom.strip() or "auto"
-        else:
-            st.session_state.model_name = selection
-
-        if state.models:
-            loaded = ", ".join(model.model_id for model in state.loaded_models[:2])
-            installed = ", ".join(model.model_id for model in state.models[:3])
-            st.caption(f"Loaded: {loaded or 'none'}")
-            st.caption(f"Available: {installed}")
-        if st.session_state.model_name != "auto":
-            job = controller.model_job(st.session_state.model_name)
-            if job and job["running"]:
-                st.info("Model job running… refresh in a moment.")
-            action = "Pull / load model" if provider_name == "Ollama" else "Load model into memory"
-            if st.button(action, use_container_width=True, key="load_provider_model"):
-                result = controller.load_model(st.session_state.model_name)
-                st.session_state.provider_notice = result.output or result.error
-                get_provider_state.clear()
-                st.rerun()
-        if st.session_state.provider_notice:
-            st.caption(st.session_state.provider_notice)
-
-        st.divider()
-        st.markdown('<div class="tb-deck-label">02 · Table source</div>', unsafe_allow_html=True)
-        if st.button("Open demo table", use_container_width=True):
+def import_controls(prefix: str) -> None:
+    st.file_uploader("Upload a CSV", type=["csv"], key=f"{prefix}_upload", on_change=load_upload,
+                     args=(f"{prefix}_upload",), help="UTF-8 CSV, up to 100 MB. Your file is processed on this computer.")
+    if st.session_state.import_error:
+        st.error(st.session_state.import_error)
+    with st.expander("Use a Google Sheet instead"):
+        with st.form(f"{prefix}_sheet_form"):
+            url = st.text_input("Public Google Sheets link", placeholder="Paste your sheet link")
+            st.caption("The sheet must be shared as ‘Anyone with the link’. Loading downloads it from Google.")
+            load = st.form_submit_button("Open sheet")
+        if load:
             try:
-                load_demo()
+                if not url.strip().startswith(("https://docs.google.com/spreadsheets/", "http://docs.google.com/spreadsheets/")):
+                    raise ValueError("Paste a public Google Sheets link.")
+                set_table(LocalTable.from_source(url.strip()), "Google Sheet")
                 st.rerun()
-            except Exception as exc:
+            except (ValueError, OSError) as exc:
                 st.error(str(exc))
 
-        data_kind = st.radio("Source", ["CSV file", "Google Sheet"], horizontal=True, label_visibility="collapsed")
-        uploaded = None
-        sheet_url = ""
-        if data_kind == "CSV file":
-            uploaded = st.file_uploader("Upload a CSV", type=["csv"], label_visibility="collapsed")
-        else:
-            sheet_url = st.text_input("Public Google Sheets URL", placeholder="Paste a public sheet URL")
 
-        if st.button("Load table", type="primary", use_container_width=True):
-            try:
-                if uploaded is not None:
-                    set_table(LocalTable.from_csv_bytes(uploaded.getvalue()), uploaded.name)
-                    st.rerun()
-                elif sheet_url.strip():
-                    set_table(LocalTable.from_source(sheet_url.strip()), "Google Sheet")
-                    st.rerun()
-                else:
-                    st.error("Choose a CSV, paste a sheet URL, or open the demo table.")
-            except Exception as exc:
-                st.error(str(exc))
-
-        table: LocalTable | None = st.session_state.table
-        if table is not None:
-            st.divider()
-            st.markdown('<div class="tb-deck-label">Loaded table</div>', unsafe_allow_html=True)
-            st.markdown(f"**{st.session_state.table_label or 'Table'}**")
-            st.caption(f"{table.profile.row_count:,} rows · {table.profile.column_count} columns")
-            if st.button("Clear table", use_container_width=True):
-                clear_table()
-                st.rerun()
-
-    client = OpenAICompatibleClient(
-        base_url=st.session_state.server_url,
-        model=st.session_state.model_name,
-        api_key=st.session_state.api_key,
-        timeout=120,
-    )
-    return client, state
-
-
-def render_landing(status: ProviderState) -> None:
-    left, right = st.columns([1.08, .92], gap="large")
-    with left:
-        st.markdown('<div class="tb-kicker">LOCAL TABLE INTELLIGENCE · 01</div>', unsafe_allow_html=True)
-        st.markdown('<h1 class="tb-hero-title">Rows<br>become<br><em>signal.</em></h1>', unsafe_allow_html=True)
-        st.markdown('<p class="tb-hero-copy">A focused local desk for turning spreadsheets into a point of view. Ask a sharp question, get a concise answer, and keep the proof in reach.</p>', unsafe_allow_html=True)
-        if st.button("Open the demo table", type="primary", key="landing_demo"):
-            try:
-                load_demo()
-                st.rerun()
-            except Exception as exc:
-                st.error(str(exc))
-        if status.ready:
-            st.markdown('<div class="tb-hero-note"><strong>Signal is live.</strong><br>Your local model is ready for a first question.</div>', unsafe_allow_html=True)
-        else:
-            st.markdown('<div class="tb-hero-note"><strong>Desk is waiting.</strong><br>Start a local server in the control deck, then bring in a table.</div>', unsafe_allow_html=True)
-    with right:
-        if BANNER_PATH.exists():
-            banner_data = base64.b64encode(BANNER_PATH.read_bytes()).decode("ascii")
-            st.markdown(
-                f'<div class="tb-visual"><img src="data:image/jpeg;base64,{banner_data}" alt="Abstract blue signal beam" /><div class="tb-visual-grid"></div><div class="tb-visual-label">SIGNAL DESK / LOCAL ONLY / 001</div></div>',
-                unsafe_allow_html=True,
-            )
-
-    st.markdown('<div class="tb-loop">\
-        <div class="tb-loop-step"><div class="tb-loop-number">01 / INGEST</div><div class="tb-loop-title">Bring the table.</div><div class="tb-loop-copy">CSV or a public Google Sheet. Validation stays on your machine.</div></div>\
-        <div class="tb-loop-step"><div class="tb-loop-number">02 / ASK</div><div class="tb-loop-title">Find the signal.</div><div class="tb-loop-copy">A local model gets only the profile and rows that matter.</div></div>\
-        <div class="tb-loop-step"><div class="tb-loop-number">03 / PROVE</div><div class="tb-loop-title">Keep the proof.</div><div class="tb-loop-copy">Every answer keeps its retrieved evidence one click away.</div></div>\
-    </div>', unsafe_allow_html=True)
-
-
-def render_explore(table: LocalTable) -> None:
-    profile = table.profile
-    total_cells = profile.row_count * profile.column_count
-    missing_cells = sum(profile.missing_values.values())
-    completeness = 100 if not total_cells else (1 - missing_cells / total_cells) * 100
-
-    st.markdown('<div class="tb-kicker">TABLE PROFILE / LOCAL COMPUTE</div>', unsafe_allow_html=True)
-    st.markdown('<div class="tb-section-title">Know the shape<br>before you ask.</div>', unsafe_allow_html=True)
-    metrics = st.columns(4)
-    metrics[0].metric("Rows", f"{profile.row_count:,}")
-    metrics[1].metric("Columns", profile.column_count)
-    metrics[2].metric("Completeness", f"{completeness:.1f}%")
-    metrics[3].metric("Duplicate rows", f"{profile.duplicate_rows:,}")
-
-    overview = pd.DataFrame(
-        {
-            "column": profile.columns,
-            "type": [str(table.dataframe[column].dtype) for column in profile.columns],
-            "missing": [profile.missing_values[column] for column in profile.columns],
-        }
-    )
-    st.markdown("#### Column map")
-    st.dataframe(overview, use_container_width=True, hide_index=True)
-
-    numeric = table.numeric_summary()
-    if not numeric.empty:
-        st.markdown("#### Numeric signal")
-        st.caption("These aggregates are computed locally and included as profile context for the model.")
-        st.dataframe(numeric, use_container_width=True, hide_index=True)
-
-    st.markdown("#### Preview")
-    st.dataframe(table.dataframe.head(25), use_container_width=True, hide_index=True)
-    if profile.warnings:
-        with st.expander(f"Data quality notes · {len(profile.warnings)}", expanded=False):
-            for warning in profile.warnings:
-                st.warning(warning)
-    else:
-        st.caption("No data-quality warnings detected.")
-
-
-def render_workspace(table: LocalTable, client: OpenAICompatibleClient, status: ProviderState) -> None:
-    profile = table.profile
-    label = st.session_state.table_label or "Loaded table"
-    header_left, header_right = st.columns([0.8, 0.2])
-    with header_left:
-        st.markdown('<div class="tb-kicker">ACTIVE TABLE / LOCAL</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="tb-workspace-title">{label}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="tb-workspace-meta">{profile.row_count:,} ROWS · {profile.column_count} COLUMNS · PROFILE READY</div>', unsafe_allow_html=True)
-    with header_right:
-        signal = "READY" if status.ready else ("ONLINE" if status.server_online else "OFFLINE")
-        st.markdown(f'<div class="tb-signal-badge"><small>MODEL SIGNAL</small><strong>{signal}</strong></div>', unsafe_allow_html=True)
-
-    ask_tab, explore_tab = st.tabs(["Ask", "Explore"])
-    with ask_tab:
-        st.markdown('<div class="tb-conversation-label">CONVERSATION / ASK THE DESK</div>', unsafe_allow_html=True)
-        st.markdown('<div class="tb-section-title">What do you<br>want to know?</div>', unsafe_allow_html=True)
-        st.caption("Ask for a summary, a pattern, a follow-up, or a specific record. Tablebeam keeps the evidence close.")
-
-        quick_questions = [
-            "Give me a concise executive summary.",
-            "Which records need attention?",
-            "What are the largest values?",
-            "What should I investigate next?",
-        ]
-        quick_columns = st.columns(4)
-        for index, question in enumerate(quick_questions):
-            if quick_columns[index].button(question, key=f"quick_{index}", use_container_width=True):
-                st.session_state.queued_question = question
-                st.rerun()
-
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
-                if message["role"] == "assistant":
-                    render_sources(message.get("sources", []))
-
-        question = st.session_state.pop("queued_question", None) or st.chat_input("Ask about your table…")
-        if question and question.strip():
-            clean_question = question.strip()
-            st.session_state.messages.append({"role": "user", "content": clean_question})
-            with st.chat_message("user"):
-                st.write(clean_question)
-            with st.chat_message("assistant"):
-                with st.spinner("Following the beam…"):
-                    try:
-                        answer, sources = client.ask(clean_question, table)
-                        source_dicts = [source.as_dict() for source in sources]
-                        st.write(answer)
-                        render_sources(source_dicts)
-                        st.session_state.messages.append({"role": "assistant", "content": answer, "sources": source_dicts})
-                    except ProviderError as exc:
-                        st.error(str(exc))
-
-    with explore_tab:
-        render_explore(table)
-
-
-st.set_page_config(page_title="Tablebeam", page_icon="✦", layout="wide")
-setup_state()
-inject_styles()
-active_url = st.session_state.server_url if st.session_state.provider_seen == st.session_state.provider_name else PROVIDERS[st.session_state.provider_name]
-initial_status = get_provider_state(st.session_state.provider_name, active_url, st.session_state.api_key)
-render_masthead(initial_status)
-client, status = render_control_deck()
-
-if os.getenv("START_WITH_DEMO") == "1" and st.session_state.table is None:
-    try:
+@st.dialog("Open a table")
+def import_dialog() -> None:
+    if st.session_state.import_completed:
+        st.session_state.import_completed = False
+        st.rerun()
+    import_controls("replace")
+    if st.button("Use example data", key="replace_demo"):
         load_demo()
-    except Exception as exc:
-        st.error(str(exc))
+        st.rerun()
+    if st.button("Start over", key="start_over", help="Clear the table and answers from this session. Your original file is unchanged."):
+        set_table(None, None)
+        st.rerun()
 
-if st.session_state.table is None:
-    render_landing(status)
-else:
-    render_workspace(st.session_state.table, client, status)
+
+def controller() -> ProviderController:
+    config = st.session_state.connection
+    return ProviderController(config["provider"], config["url"], api_key=config["api_key"])
+
+
+def ready_model(state: ProviderState | None) -> str | None:
+    if state is None or not state.ready:
+        return None
+    loaded = [model.model_id for model in state.ready_models]
+    requested = st.session_state.connection["model"]
+    return loaded[0] if requested == "auto" else (requested if requested in loaded else None)
+
+
+@st.dialog("Connect your AI")
+def ai_dialog() -> None:
+    st.write("Use LM Studio or Ollama running on your computer. Totals and comparisons work without either.")
+    config = st.session_state.connection
+    provider = st.radio("Your app", list(PROVIDERS), index=list(PROVIDERS).index(config["provider"]), key="ai_provider", horizontal=True)
+    if provider != config["provider"]:
+        config.update(provider=provider, url=PROVIDERS[provider], model="auto", api_key="")
+        st.session_state.connection_state = None
+        st.session_state.connection_notice = None
+        st.session_state.connection_revision += 1
+    state = st.session_state.connection_state
+    if st.button("Find local models", type="primary", key="check_connection"):
+        with st.spinner("Looking for your local model…"):
+            state = controller().probe()
+            st.session_state.connection_state = state
+    if state is not None:
+        if not state.server_online:
+            st.info(f"Open {provider} and start its local server, then try again.")
+            if st.button("Start server", key="start_server"):
+                result = controller().start_server()
+                st.session_state.connection_notice = (result.output if result.ok else result.error) or result.output
+                st.session_state.connection_action_failed = not result.ok
+                st.session_state.connection_state = controller().probe()
+                st.session_state.show_ai_settings = True
+                st.rerun()
+        else:
+            options = [model.model_id for model in state.models]
+            if config["model"] != "auto" and config["model"] not in options:
+                options.append(config["model"])
+            if options:
+                current = config["model"]
+                preferred = current if current in options else (state.loaded_models[0].model_id if state.loaded_models else options[0])
+                selected = st.selectbox("Model", options, index=options.index(preferred),
+                                        key=f"ai_model_choice_{st.session_state.connection_revision}")
+                if config["model"] != selected:
+                    config["model"] = selected
+                    st.session_state.connection_revision += 1
+                if ready_model(state):
+                    st.success("Ready to answer your questions.")
+                else:
+                    st.caption("This model needs to be loaded before it can answer.")
+                    job = controller().model_job(selected)
+                    if job and job["running"]:
+                        st.info("Model loading. Use Find local models to check progress.")
+                    elif job and job["returncode"] != 0:
+                        st.error(f"The model could not be loaded. Open {provider} for details or choose another model.")
+                    installed = any(model.model_id == selected and model.installed for model in state.models)
+                    action = "Download model" if provider == "Ollama" and not installed else "Load this model"
+                    if st.button(action, key="load_model"):
+                        result = controller().load_model(selected)
+                        st.session_state.connection_notice = (result.output if result.ok else result.error) or result.output
+                        st.session_state.connection_action_failed = not result.ok
+                        st.session_state.connection_state = controller().probe()
+                        st.session_state.show_ai_settings = True
+                        st.rerun()
+            else:
+                st.info(f"No models found. Download a chat model in {provider}, then check again.")
+    else:
+        st.caption("First, open your model app and enable its local server.")
+    with st.expander("Advanced settings"):
+        with st.form("connection_form"):
+            revision = st.session_state.connection_revision
+            url = st.text_input("Server address", value=config["url"], key=f"ai_url_{revision}")
+            model_id = st.text_input("Model ID", value=config["model"], key=f"ai_model_id_{revision}")
+            api_key = st.text_input("API key", value=config["api_key"], type="password", key=f"ai_api_key_{revision}")
+            st.caption("AI questions send selected rows and the table profile to this address. Use a local address to keep them on your computer.")
+            save = st.form_submit_button("Save connection")
+        if save:
+            if not valid_server_address(url.strip()):
+                st.error("Enter a server address starting with http:// or https://, without query parameters.")
+            else:
+                config.update(url=url.strip(), model=model_id.strip() or "auto", api_key=api_key)
+                st.session_state.connection_revision += 1
+                st.session_state.connection_state = None
+                st.session_state.show_ai_settings = True
+                st.rerun()
+    if st.session_state.connection_notice:
+        if st.session_state.connection_action_failed:
+            st.error(st.session_state.connection_notice)
+        else:
+            with st.expander("Connection details"):
+                st.text(st.session_state.connection_notice)
+    if ready_model(st.session_state.connection_state):
+        if st.button("Done", key="close_ai"):
+            st.session_state.show_ai_settings = False
+            st.rerun()
+
+
+def save_answer(answer: dict) -> None:
+    old = st.session_state.answer
+    if old and old.get("kind") in {"calculation", "ai"}:
+        st.session_state.answer_history = [old] + st.session_state.answer_history[:4]
+    st.session_state.answer = answer
+    st.session_state.question_error = None
+
+
+def calculate(question: str, spec: Calculation, table: LocalTable,
+              filters: list[FilterSpec] | None = None, filter_label: str = "All rows") -> None:
+    selected = filter_dataframe(table.dataframe, filters or [])
+    result = summarize_dataframe(selected, spec.operation, spec.column, spec.group_by)
+    save_answer({"kind": "calculation", "question": question, "operation": spec.operation,
+                 "column": spec.column, "group_by": spec.group_by, "result": result,
+                 "selected_rows": len(selected), "total_rows": len(table.dataframe),
+                 "filter_label": filter_label, "selected_data": selected,
+                 "missing_values": int(selected[spec.column].isna().sum()) if spec.column else 0})
+
+
+def answer_question(question: str, table: LocalTable, *, use_ai: bool = False) -> None:
+    clean = question.strip()
+    if not clean:
+        st.session_state.question_error = "Type a question, or choose one of the examples below."
+        return
+    spec = None if use_ai else parse_question(clean, table.dataframe)
+    try:
+        if spec is not None:
+            calculate(clean, spec, table)
+            return
+        # AI is explicit: an unrecognized calculation must not silently become
+        # a generated number, even if a provider is already connected.
+        if not use_ai:
+            save_answer({"kind": "needs_ai", "question": clean})
+            return
+        with st.spinner("Checking your local AI…"):
+            state = controller().probe()
+            st.session_state.connection_state = state
+        model = ready_model(state)
+        if model is None:
+            save_answer({"kind": "needs_ai", "question": clean, "offline": True})
+            return
+        config = st.session_state.connection
+        client = OpenAICompatibleClient(base_url=config["url"], model=model, api_key=config["api_key"], timeout=120)
+        with st.spinner("Reading your table…"):
+            text, sources = client.ask(clean, table)
+        info = table.search_info(clean)
+        label = "Matching rows" if info["mode"] == "matched" else "First-row sample; no matching terms"
+        save_answer({"kind": "ai", "question": clean, "text": text, "sources": [source.as_dict() for source in sources],
+                     "coverage": f"{label}: {len(sources)} of {len(table.dataframe):,} rows, plus the table profile.",
+                     "profile": table.prompt_profile()})
+    except (ValueError, ProviderError) as exc:
+        st.session_state.question_error = str(exc)
+
+
+def choose_question(question: str) -> None:
+    st.session_state.question_text = question
+    st.session_state.pending_question = question
+
+
+def restore_answer(index: int) -> None:
+    history = list(st.session_state.answer_history)
+    answer = history.pop(index)
+    current = st.session_state.answer
+    if current and current.get("kind") in {"calculation", "ai"}:
+        history.insert(0, current)
+    st.session_state.answer_history = history[:5]
+    st.session_state.answer = answer
+    st.session_state.question_text = answer["question"]
+    st.session_state.question_error = None
+
+
+def filter_controls(df: pd.DataFrame) -> tuple[list[FilterSpec], str]:
+    column = st.selectbox("Only include rows where", [None] + list(df.columns),
+                          format_func=lambda value: "No filter" if value is None else friendly_column(value), key="analysis_filter_column")
+    if column is None:
+        return [], "All rows"
+    series = df[column]
+    numeric = pd.api.types.is_numeric_dtype(series) and not pd.api.types.is_bool_dtype(series)
+    operators = {"is": "eq", "is not": "ne"}
+    if numeric:
+        operators.update({"is greater than": "gt", "is at least": "ge", "is less than": "lt", "is at most": "le"})
+    elif not pd.api.types.is_bool_dtype(series):
+        operators["contains"] = "contains"
+    operators.update({"is empty": "is_missing", "is not empty": "not_missing"})
+    condition = st.selectbox("Condition", list(operators), key=f"analysis_operator_{column}")
+    value = None
+    if operators[condition] not in {"is_missing", "not_missing"}:
+        if numeric:
+            raw = st.text_input("Value", value="0", key=f"analysis_value_num_{column}")
+            try:
+                value = Decimal(raw) if pd.api.types.is_integer_dtype(series) else float(raw)
+            except (ValueError, InvalidOperation):
+                raise ValueError("Enter a number for the filter.") from None
+        elif pd.api.types.is_bool_dtype(series):
+            value = st.selectbox("Value", [True, False], key=f"analysis_value_bool_{column}")
+        elif operators[condition] in {"eq", "ne"} and 0 < series.nunique() <= 100:
+            value = st.selectbox("Value", series.dropna().unique().tolist(), key=f"analysis_value_choice_{column}")
+        else:
+            value = st.text_input("Value", key=f"analysis_value_text_{column}")
+    label = friendly_column(column) + " " + condition + (f" {value}" if value is not None else "")
+    return [FilterSpec(column, operators[condition], value)], label
+
+
+def render_builder(table: LocalTable) -> None:
+    with st.expander("Build a calculation"):
+        st.caption("Choose the columns directly. This calculation starts from your full table.")
+        choices = list(OPERATIONS) if table.profile.numeric_columns else ["Number of rows"]
+        if st.session_state.get("analysis_operation") not in choices:
+            st.session_state.analysis_operation = choices[0]
+        columns = st.columns(3)
+        op = columns[0].selectbox("Find", choices, key="analysis_operation")
+        measure = None
+        if OPERATIONS[op] != "count":
+            measure = columns[1].selectbox("Of", table.profile.numeric_columns, format_func=friendly_column, key="analysis_measure")
+        group = columns[2].selectbox("Compare by", [None] + list(table.dataframe.columns),
+                                    format_func=lambda value: "Nothing" if value is None else friendly_column(value), key="analysis_group")
+        try:
+            filters, label = filter_controls(table.dataframe)
+            if st.button("Calculate", key="calculate_custom"):
+                title = op + (" " + friendly_column(measure).lower() if measure else "")
+                if group:
+                    title += " by " + friendly_column(group).lower()
+                if filters:
+                    title += " · " + label
+                calculate(title, Calculation(OPERATIONS[op], measure, group), table, filters, label)
+                st.rerun()
+        except ValueError as exc:
+            st.error(str(exc))
+
+
+def render_ai_request(answer: dict, table: LocalTable) -> None:
+    with st.container(border=True, key="ai_request"):
+        st.markdown("### Use AI for this question")
+        st.write("This wording is outside the built-in calculations. AI can interpret your table; for an exact number, use **Build a calculation** below.")
+        if answer.get("offline"):
+            st.info("No model is ready yet. Connect your AI, then ask again. Your question is saved.")
+        if ready_model(st.session_state.connection_state):
+            if st.button("Ask AI", type="primary", key="ask_ai"):
+                answer_question(answer["question"], table, use_ai=True)
+                st.rerun()
+        elif st.button("Connect AI", type="primary", key="connect_ai"):
+            st.session_state.show_ai_settings = True
+            st.rerun()
+        with st.expander("See what AI would receive"):
+            info = table.search_info(answer["question"])
+            kind = "Matching rows" if info["mode"] == "matched" else "First-row sample (no matching terms)"
+            st.caption(f"{kind}: {info['selected_rows']} of {info['total_rows']} rows. AI answers may not describe the whole table.")
+            for source in table.search(answer["question"]):
+                st.markdown(f"**{source.citation} · row {source.row_number}**")
+                st.code(source.content, language="text")
+            st.code(table.prompt_profile(), language="text")
+
+
+def render_workspace(table: LocalTable) -> None:
+    with st.container(key="table_header"):
+        source, change = st.columns([5, 1])
+        with source:
+            st.markdown(f'<div class="tb-file">{escape(st.session_state.table_label or "Your table")}</div>', unsafe_allow_html=True)
+            st.caption(f"{table.profile.row_count:,} rows · {table.profile.column_count} columns")
+        if change.button("Change table", key="change_table", use_container_width=True):
+            st.session_state.show_importer = True
+    st.markdown('<h1 class="tb-question-title">What would you like to know?</h1>', unsafe_allow_html=True)
+    with st.form("question_form", border=False):
+        field, submit = st.columns([5, 1])
+        question = field.text_input("Your question", key="question_text", label_visibility="collapsed",
+                                    placeholder="Ask for a total, an average, or a comparison…", max_chars=2000)
+        ask = submit.form_submit_button("Get answer", type="primary", use_container_width=True)
+    with st.container(key="suggestions"):
+        suggestions = suggested_questions(table.dataframe)
+        for col, item in zip(st.columns(len(suggestions)), suggestions):
+            col.button(item.label, key=f"suggest_{item.question}", on_click=choose_question,
+                       args=(item.question,), use_container_width=True)
+    pending = st.session_state.pop("pending_question", None)
+    if ask or pending:
+        answer_question(pending or question, table)
+    if st.session_state.question_error:
+        st.error(st.session_state.question_error)
+    answer = st.session_state.answer
+    if answer:
+        if answer["kind"] == "needs_ai":
+            render_ai_request(answer, table)
+        else:
+            render_answer(answer)
+            if answer["kind"] == "calculation" and answer["selected_rows"] == 0:
+                if st.button("Use all rows", key="clear_result_filter"):
+                    calculate(answer["question"].split(" · ")[0], Calculation(answer["operation"], answer["column"], answer["group_by"]), table)
+                    st.rerun()
+    else:
+        st.caption("Choose an example above, or type your own. Each question starts from the full table.")
+    render_builder(table)
+    with st.expander(f"View data · {table.profile.row_count:,} rows"):
+        st.dataframe(display_result(table.dataframe.head(100)), use_container_width=True, hide_index=True)
+        if len(table.dataframe) > 100:
+            st.caption("Showing the first 100 rows.")
+        for warning in table.profile.warnings:
+            st.warning(warning)
+        if st.checkbox("Show column details", key="show_columns"):
+            st.dataframe(pd.DataFrame({"Column": table.profile.columns,
+                                       "Type": [str(table.dataframe[c].dtype) for c in table.profile.columns],
+                                       "Missing": [table.profile.missing_values[c] for c in table.profile.columns]}),
+                         use_container_width=True, hide_index=True)
+    if st.session_state.answer_history:
+        with st.expander("Previous answers"):
+            for index, previous in enumerate(st.session_state.answer_history):
+                st.button(previous["question"], key=f"history_{index}", on_click=restore_answer, args=(index,))
+    st.caption("Your table stays in this session. Download any answers you want to keep.")
+
+
+def main() -> None:
+    st.set_page_config(page_title="Tablebeam · ask your spreadsheet", page_icon="✦", layout="wide")
+    setup_state()
+    st.session_state.import_completed = False
+    st.markdown(f"<style>{(ROOT / 'assets' / 'tablebeam.css').read_text()}</style>", unsafe_allow_html=True)
+    with st.container(key="app_header"):
+        brand, settings = st.columns([5, 1])
+        brand.markdown('<div class="tb-brand"><span>✦</span> tablebeam</div>', unsafe_allow_html=True)
+        if st.session_state.table is not None and settings.button("AI settings", key="open_ai_settings", use_container_width=True):
+            st.session_state.show_ai_settings = True
+    if not st.session_state.demo_bootstrapped:
+        st.session_state.demo_bootstrapped = True
+        if os.getenv("START_WITH_DEMO") == "1":
+            load_demo()
+    auto_start = os.getenv("AUTO_START_PROVIDER", os.getenv("AUTO_START_MODEL", "0")) == "1"
+    if auto_start and not st.session_state.auto_start_attempted:
+        st.session_state.auto_start_attempted = True
+        state = controller().probe()
+        if not state.server_online:
+            controller().start_server()
+        st.session_state.connection_state = controller().probe()
+    if st.session_state.table is None:
+        st.markdown('<h1 class="tb-landing-title">Get answers from<br>your spreadsheet.</h1>', unsafe_allow_html=True)
+        st.markdown('<p class="tb-intro">Start with a CSV. Get a total, compare categories, or ask a question.</p>', unsafe_allow_html=True)
+        with st.container(key="import_card"):
+            import_controls("landing")
+            if st.button("Try example data", key="landing_demo", use_container_width=True):
+                load_demo()
+                st.rerun()
+        st.caption("No account needed. Calculations run on your computer.")
+    else:
+        render_workspace(st.session_state.table)
+    if st.session_state.show_importer:
+        # Dismissed dialogs are not reopened by the next unrelated rerun.
+        st.session_state.show_importer = False
+        import_dialog()
+    elif st.session_state.show_ai_settings:
+        st.session_state.show_ai_settings = False
+        ai_dialog()
+
+
+if __name__ == "__main__":
+    main()

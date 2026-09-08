@@ -27,8 +27,8 @@ EOF
 for arg in "$@"; do
   case "$arg" in
     --demo) export START_WITH_DEMO=1 ;;
-    --lm-studio) export LLM_PROVIDER="LM Studio"; export LLM_BASE_URL="${LLM_BASE_URL:-http://localhost:1234/v1}" ;;
-    --ollama) export LLM_PROVIDER="Ollama"; export LLM_BASE_URL="${LLM_BASE_URL:-http://localhost:11434/v1}" ;;
+    --lm-studio) export LLM_PROVIDER="LM Studio" ;;
+    --ollama) export LLM_PROVIDER="Ollama" ;;
     --start-server|--start-model) export AUTO_START_PROVIDER=1 ;;
     --skip-install) SKIP_INSTALL=1 ;;
     -h|--help) usage; exit 0 ;;
@@ -36,36 +36,40 @@ for arg in "$@"; do
   esac
 done
 
-if [[ ! -f src/app.py || ! -f src/requirements.txt ]]; then
+if [[ ! -f src/app.py || ! -f src/requirements.txt || ! -f src/check_dependencies.py ]]; then
   echo "Run this script from the repository root." >&2
   exit 1
 fi
-command -v "$PYTHON_BIN" >/dev/null 2>&1 || { echo "Python 3.10+ is required." >&2; exit 1; }
-"$PYTHON_BIN" - <<'PY'
-import sys
-if sys.version_info < (3, 10):
-    raise SystemExit("Python 3.10+ is required")
-PY
-
-if [[ ! -d "$VENV_DIR" ]]; then
+VENV_PYTHON="$VENV_DIR/bin/python"
+if [[ ! -e "$VENV_DIR" && ! -L "$VENV_DIR" ]]; then
+  command -v "$PYTHON_BIN" >/dev/null 2>&1 || { echo "Python 3.10+ is required." >&2; exit 1; }
+  "$PYTHON_BIN" -c 'import sys; sys.exit("Python 3.10+ is required" if sys.version_info < (3, 10) else 0)'
   echo "Creating Python environment in $VENV_DIR..."
   "$PYTHON_BIN" -m venv "$VENV_DIR"
 fi
-# shellcheck disable=SC1091
-source "$VENV_DIR/bin/activate"
+if [[ ! -x "$VENV_PYTHON" ]]; then
+  echo "The environment at $VENV_DIR has no usable bin/python. Existing files were preserved." >&2
+  echo "Repair it with Python 3.10+: python3 -m venv \"$VENV_DIR\", or set VENV_DIR to a new directory." >&2
+  exit 1
+fi
+"$VENV_PYTHON" -c 'import sys; sys.exit("The selected environment requires Python 3.10+. Set VENV_DIR to a new environment directory." if sys.version_info < (3, 10) else 0)'
 
-if ! python -c 'import pandas, requests, streamlit' >/dev/null 2>&1; then
+if ! "$VENV_PYTHON" src/check_dependencies.py; then
   if [[ "$SKIP_INSTALL" -eq 1 ]]; then
-    echo "Dependencies are missing. Rerun without --skip-install to install them." >&2
+    echo "Missing or incompatible dependencies; --skip-install prevents updates. Rerun without --skip-install." >&2
     exit 1
   fi
-  echo "Installing Python dependencies (first run; this can take a minute)..."
+  echo "Installing required Python dependencies (this can take a minute)..."
   PIP_FLAGS=(--disable-pip-version-check --no-input --default-timeout=30 --retries=3 --prefer-binary)
   if [[ "${TABLEBEAM_PIP_VERBOSE:-0}" == "1" ]]; then
     PIP_FLAGS+=(--verbose)
   fi
-  if ! python -m pip install -r src/requirements.txt "${PIP_FLAGS[@]}"; then
-    echo "Dependency installation failed. Try again with: ./.venv/bin/python -m pip install -r src/requirements.txt --verbose" >&2
+  if ! "$VENV_PYTHON" -m pip install -r src/requirements.txt "${PIP_FLAGS[@]}"; then
+    echo "Dependency installation failed. Retry with TABLEBEAM_PIP_VERBOSE=1 ./start.sh for details." >&2
+    exit 1
+  fi
+  if ! "$VENV_PYTHON" src/check_dependencies.py; then
+    echo "Dependencies are still incompatible after installation. See the version errors above." >&2
     exit 1
   fi
   echo "Dependencies ready."
@@ -81,4 +85,4 @@ if [[ -z "${LLM_BASE_URL:-}" ]]; then
 fi
 echo "Starting Tablebeam at http://localhost:8501"
 echo "Local model endpoint: $LLM_BASE_URL"
-exec streamlit run src/app.py --server.headless false --theme.base=light
+exec "$VENV_PYTHON" -m streamlit run src/app.py --server.headless false --theme.base=light

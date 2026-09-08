@@ -5,6 +5,8 @@ import requests
 from urllib.parse import urlparse, parse_qs
 import logging
 
+from data_pipeline import DEFAULT_MAX_BYTES, DEFAULT_MAX_ROWS, DataValidationError, parse_csv_bytes
+
 logger = logging.getLogger(__name__)
 
 
@@ -68,7 +70,13 @@ def extract_gid_from_url(url: str) -> Optional[str]:
     return None
 
 
-def load_gsheet_as_csv(url: str, timeout: int = 30) -> pd.DataFrame:
+def load_gsheet_as_csv(
+    url: str,
+    timeout: int = 30,
+    *,
+    max_rows: int = DEFAULT_MAX_ROWS,
+    max_bytes: int = DEFAULT_MAX_BYTES,
+) -> pd.DataFrame:
     """
     Load a Google Sheet as a pandas DataFrame.
     
@@ -98,23 +106,36 @@ def load_gsheet_as_csv(url: str, timeout: int = 30) -> pd.DataFrame:
     if gid:
         logger.info(f"Using sheet/tab with gid: {gid}")
     
+    response = None
     try:
         # Make the request
-        response = requests.get(csv_url, timeout=timeout)
+        response = requests.get(csv_url, timeout=timeout, stream=True)
         response.raise_for_status()
         
         # Check if we got HTML instead of CSV (usually means the sheet is private)
-        content_type = response.headers.get('content-type', '')
+        content_type = response.headers.get('content-type', '').lower()
         if 'text/html' in content_type:
             raise ValueError(
                 "Could not access the Google Sheet. Make sure it's publicly readable. "
                 "To make it public: Share → Change to 'Anyone with the link can view'"
             )
         
-        # Parse CSV content
-        from io import StringIO
-        csv_content = StringIO(response.text)
-        df = pd.read_csv(csv_content)
+        # iter_content bounds decoded bytes as well as ordinary response bodies.
+        # Stop before buffering an oversized sheet; never materialize .text.
+        chunks: list[bytes] = []
+        received = 0
+        for chunk in response.iter_content(chunk_size=64 * 1024):
+            if not chunk:
+                continue
+            received += len(chunk)
+            if received > max_bytes:
+                raise DataValidationError(
+                    f"Google Sheet exceeds the safe limit of {max_bytes / (1024 * 1024):g} MB."
+                )
+            chunks.append(chunk)
+        df = parse_csv_bytes(
+            b"".join(chunks), max_rows=max_rows, max_bytes=max_bytes, source_label="Google Sheet"
+        )
         
         logger.info(f"Successfully loaded {len(df)} rows from Google Sheet")
         return df
@@ -123,6 +144,9 @@ def load_gsheet_as_csv(url: str, timeout: int = 30) -> pd.DataFrame:
         raise ValueError(f"Timeout while loading Google Sheet (waited {timeout}s)")
     except requests.exceptions.RequestException as e:
         raise ValueError(f"Error loading Google Sheet: {str(e)}")
+    finally:
+        if response is not None:
+            response.close()
 
 
 def validate_gsheet_data(df: pd.DataFrame, required_columns: Optional[list] = None) -> None:
