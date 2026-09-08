@@ -12,7 +12,7 @@ from typing import Any, Optional
 import uvicorn
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from assistant_core import LocalTable, OpenAICompatibleClient, ProviderError
 
@@ -31,6 +31,14 @@ def now() -> str:
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=MAX_QUERY_LENGTH)
     limit: int = Field(default=8, ge=1, le=20)
+
+    @field_validator("question")
+    @classmethod
+    def strip_question(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Question must contain non-whitespace characters.")
+        return value
 
 
 class QueryResponse(BaseModel):
@@ -72,7 +80,7 @@ async def health() -> dict[str, Any]:
 
 @app.get("/ready")
 async def ready() -> dict[str, Any]:
-    provider = client.status() if client else {"ready": False, "models": [], "error": "DATA_SOURCE is not configured"}
+    provider = await asyncio.to_thread(client.status) if client else {"ready": False, "models": [], "error": "DATA_SOURCE is not configured"}
     checks = {"data_source": table is not None, "local_model": bool(provider["ready"])}
     if not all(checks.values()):
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail={"checks": checks, "provider": provider})
@@ -88,6 +96,8 @@ async def query(request: QueryRequest) -> QueryResponse:
         answer, sources = await asyncio.to_thread(client.ask, request.question, table, request.limit)
     except ProviderError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     response = QueryResponse(
         answer=answer,
         question=request.question,

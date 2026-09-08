@@ -8,15 +8,25 @@ downloads model weights silently.
 
 from __future__ import annotations
 
-import json
 import os
 import platform
 import shutil
+from urllib.parse import urlparse
 import subprocess
 from dataclasses import dataclass
 from typing import Any, Callable, Optional
 
 import requests
+
+
+def valid_server_address(address: str) -> bool:
+    """Accept a complete HTTP endpoint before making it actionable."""
+    try:
+        parsed = urlparse(address)
+        return bool(parsed.scheme in {"http", "https"} and parsed.hostname
+                    and not parsed.query and not parsed.fragment and parsed.port != 0)
+    except ValueError:
+        return False
 
 
 @dataclass(frozen=True)
@@ -28,6 +38,7 @@ class ProviderModel:
     loaded: bool = False
     installed: bool = True
     size_bytes: Optional[int] = None
+    available: bool = False
 
 
 @dataclass(frozen=True)
@@ -47,8 +58,13 @@ class ProviderState:
         return tuple(model for model in self.models if model.loaded)
 
     @property
+    def ready_models(self) -> tuple[ProviderModel, ...]:
+        # Some servers (notably Ollama) load installed models on request.
+        return tuple(model for model in self.models if model.loaded or model.available)
+
+    @property
     def ready(self) -> bool:
-        return self.server_online and bool(self.loaded_models)
+        return self.server_online and bool(self.ready_models)
 
 
 @dataclass(frozen=True)
@@ -137,134 +153,109 @@ class ProviderController:
         except ValueError as exc:
             return False, {}, f"Invalid provider response: {exc}"
 
+    @property
+    def native_root(self) -> str:
+        return self.base_url[:-3] if self.base_url.endswith("/v1") else self.base_url
+
+    @property
+    def controls_local_server(self) -> bool:
+        return valid_server_address(self.base_url) and urlparse(self.base_url).hostname in {"localhost", "127.0.0.1", "::1"}
+
     def _openai_models(self) -> tuple[bool, list[str], Optional[str]]:
         ok, payload, error = self._get_json(f"{self.base_url}/models")
         if not ok:
             return False, [], error
-        items = payload.get("data", []) if isinstance(payload, dict) else []
+        items = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(items, list):
+            return False, [], "Invalid provider response: expected a model list."
         models = [str(item["id"]) for item in items if isinstance(item, dict) and item.get("id")]
         return True, models, None
 
-    def _ollama_models(self) -> list[ProviderModel]:
-        root = self.base_url[:-3] if self.base_url.endswith("/v1") else self.base_url
-        ok, payload, _ = self._get_json(f"{root}/api/tags")
-        if not ok or not isinstance(payload, dict):
-            return []
-        models: list[ProviderModel] = []
-        for item in payload.get("models", []):
-            if not isinstance(item, dict) or not item.get("name"):
-                continue
-            models.append(
-                ProviderModel(
-                    model_id=str(item["name"]),
-                    label=str(item["name"]),
-                    installed=True,
-                    size_bytes=item.get("size") if isinstance(item.get("size"), int) else None,
-                )
+    def _ollama_models(self) -> Optional[list[ProviderModel]]:
+        ok, payload, _ = self._get_json(f"{self.native_root}/api/tags")
+        items = payload.get("models") if isinstance(payload, dict) else None
+        if not ok or not isinstance(items, list):
+            return None
+        ps_ok, ps, _ = self._get_json(f"{self.native_root}/api/ps")
+        running = ps.get("models", []) if ps_ok and isinstance(ps, dict) else []
+        running = running if isinstance(running, list) else []
+        loaded = {str(item.get("name") or item.get("model")) for item in running if isinstance(item, dict)}
+        return [
+            ProviderModel(
+                model_id=str(item["name"]), label=str(item["name"]),
+                loaded=str(item["name"]) in loaded, available=True,
+                size_bytes=item.get("size") if isinstance(item.get("size"), int) else None,
             )
-        return models
+            for item in items if isinstance(item, dict) and item.get("name")
+        ]
 
-    def _lmstudio_models(self) -> tuple[list[ProviderModel], list[str]]:
-        if not self._command_available():
-            return [], []
-        installed_result = self._run(["lms", "ls", "--llm", "--json"])
-        loaded_result = self._run(["lms", "ps", "--json"])
-        installed: list[ProviderModel] = []
-        loaded: list[str] = []
-        if installed_result.ok:
-            try:
-                payload = json.loads(installed_result.output)
-                items = payload if isinstance(payload, list) else payload.get("models", [])
-                for item in items:
-                    if not isinstance(item, dict):
-                        continue
-                    model_id = item.get("modelKey") or item.get("path") or item.get("key")
-                    if model_id:
-                        installed.append(
-                            ProviderModel(
-                                model_id=str(model_id),
-                                label=str(item.get("displayName") or model_id),
-                                installed=True,
-                                size_bytes=item.get("sizeBytes") if isinstance(item.get("sizeBytes"), int) else None,
-                            )
-                        )
-            except (TypeError, ValueError, json.JSONDecodeError):
-                pass
-        if loaded_result.ok:
-            try:
-                payload = json.loads(loaded_result.output)
-                items = payload if isinstance(payload, list) else payload.get("models", [])
-                for item in items:
-                    if isinstance(item, dict):
-                        model_id = item.get("identifier") or item.get("modelKey") or item.get("path")
-                        if model_id:
-                            loaded.append(str(model_id))
-            except (TypeError, ValueError, json.JSONDecodeError):
-                pass
-        return installed, loaded
+    def _lmstudio_models(self) -> Optional[list[ProviderModel]]:
+        # OpenAI /v1/models includes downloaded models when LM Studio's JIT
+        # loading is enabled. Its native API is the authority for loaded state,
+        # including when Tablebeam runs in Docker or on another machine.
+        ok, payload, _ = self._get_json(f"{self.native_root}/api/v1/models")
+        items = payload.get("models") if isinstance(payload, dict) else None
+        if ok and isinstance(items, list):
+            models = []
+            for item in items:
+                if not isinstance(item, dict) or item.get("type") != "llm" or not item.get("key"):
+                    continue
+                instances = item.get("loaded_instances", [])
+                instances = instances if isinstance(instances, list) else []
+                identifiers = [str(instance["id"]) for instance in instances if isinstance(instance, dict) and instance.get("id")]
+                label = str(item.get("display_name") or item["key"])
+                if identifiers:
+                    models.extend(ProviderModel(identifier, label, loaded=True) for identifier in identifiers)
+                else:
+                    models.append(ProviderModel(str(item["key"]), label))
+            return models
+        ok, payload, _ = self._get_json(f"{self.native_root}/api/v0/models")
+        items = payload.get("data") if isinstance(payload, dict) else None
+        if ok and isinstance(items, list) and all(isinstance(item, dict) and "state" in item for item in items):
+            return [
+                ProviderModel(str(item["id"]), str(item["id"]), loaded=item.get("state") == "loaded")
+                for item in items if item.get("id") and item.get("type") in {"llm", "vlm"}
+            ]
+        return None
 
     def probe(self) -> ProviderState:
-        """Return server and model state without starting anything."""
-
+        """Discover requestable models without changing model/server state."""
         server_online, served_models, server_error = self._openai_models()
-        models: dict[str, ProviderModel] = {
-            model_id: ProviderModel(model_id=model_id, label=model_id, loaded=True)
-            for model_id in served_models
-        }
-        if self.provider == "Ollama":
-            for model in self._ollama_models():
-                existing = models.get(model.model_id)
-                models[model.model_id] = model if existing is None else ProviderModel(
-                    model_id=model.model_id,
-                    label=model.label,
-                    loaded=existing.loaded,
-                    installed=True,
-                    size_bytes=model.size_bytes,
-                )
-        else:
-            installed, loaded = self._lmstudio_models()
-            for model in installed:
-                existing = models.get(model.model_id)
-                models[model.model_id] = model if existing is None else ProviderModel(
-                    model_id=model.model_id,
-                    label=model.label,
-                    loaded=existing.loaded,
-                    installed=True,
-                    size_bytes=model.size_bytes,
-                )
-            for model_id in loaded:
-                existing = models.get(model_id)
-                models[model_id] = existing or ProviderModel(model_id=model_id, label=model_id, loaded=True)
-        ordered = tuple(sorted(models.values(), key=lambda model: (not model.loaded, model.label.lower())))
-        if server_online and served_models:
+        native = self._ollama_models() if self.provider == "Ollama" else self._lmstudio_models()
+        # A generic compatible endpoint has no native memory-state API. Its
+        # advertised models are requestable, not asserted to be loaded in RAM.
+        models = native if native is not None else [
+            ProviderModel(model_id, model_id, available=True) for model_id in served_models
+        ]
+        ordered = tuple(sorted(models, key=lambda model: (not model.loaded, model.label.lower(), model.model_id)))
+        ready = server_online and any(model.loaded or model.available for model in ordered)
+        if ready:
             message = "Server online · model ready"
         elif server_online:
             message = "Server online · load a model"
-        elif self._command_available():
-            message = f"{self.cli_name} found · server offline"
         else:
-            message = "Provider not running"
+            message = "Server offline"
         return ProviderState(
-            provider=self.provider,
-            base_url=self.base_url,
-            server_online=server_online,
-            models=ordered,
-            cli_available=self._command_available(),
-            message=message,
-            error=None if server_online else server_error,
+            provider=self.provider, base_url=self.base_url, server_online=server_online,
+            models=ordered, cli_available=self.controls_local_server and self._command_available(),
+            message=message, error=None if server_online else server_error,
         )
 
     def start_server(self) -> CommandResult:
         """Start the provider server, or open its desktop app as a fallback."""
 
+        if not valid_server_address(self.base_url):
+            return CommandResult(False, "", "Enter a valid http:// or https:// server address first.")
+        if not self.controls_local_server:
+            return CommandResult(False, "", "Start the provider on the machine hosting this server, then find models again.")
         if self._command_available():
             if self.provider == "Ollama":
                 return self._start_background([self.cli_name, "serve"])
             command = [self.cli_name, "server", "start"]
             if self.provider == "LM Studio":
-                port = self.base_url.rsplit(":", 1)[-1].split("/", 1)[0]
-                if port.isdigit():
-                    command.extend(["--port", port])
+                port = urlparse(self.base_url).port
+                if port is not None:
+                    command.extend(["--port", str(port)])
             result = self._run(command, timeout=20)
             if result.ok or self.provider != "LM Studio":
                 return result
@@ -291,8 +282,12 @@ class ProviderController:
         model_id = model_id.strip()
         if not model_id:
             return CommandResult(False, "", "Choose a model first.")
+        if not valid_server_address(self.base_url):
+            return CommandResult(False, "", "Enter a valid http:// or https:// server address first.")
+        if not self.controls_local_server:
+            return CommandResult(False, "", "Load the model in the provider on the machine hosting this server, then find models again.")
         if not self._command_available():
-            return CommandResult(False, "", f"Install {self.cli_name} to load models from Tablebeam.")
+            return CommandResult(False, "", f"Load the model in {self.provider}, then find models again.")
         command = [self.cli_name, "load", model_id] if self.provider == "LM Studio" else [self.cli_name, "pull", model_id]
         job_key = f"{self.provider}:{model_id}"
         existing = _BACKGROUND_JOBS.get(job_key)
