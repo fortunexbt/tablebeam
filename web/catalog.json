@@ -1,0 +1,38 @@
+[
+  {
+    "file": "clients.csv",
+    "name": "Client accounts",
+    "note": "12 invented CRM rows. Small enough that the demo can print every term of the arithmetic.",
+    "credit": "Sample file shipped with Tablebeam",
+    "questions": [
+      "Total annual revenue by owner",
+      "Average health score by status",
+      "Maximum annual revenue",
+      "How many rows are there?"
+    ]
+  },
+  {
+    "file": "penguins.csv",
+    "name": "Palmer penguins",
+    "note": "344 body measurements taken at Palmer Station, Antarctica. Some cells are blank.",
+    "credit": "Horst, Hill & Gorman, palmerpenguins (CC0)",
+    "questions": [
+      "Average body mass g by species",
+      "Count rows by island",
+      "Median bill depth mm by sex",
+      "Maximum flipper length mm"
+    ]
+  },
+  {
+    "file": "exoplanets.csv",
+    "name": "Confirmed exoplanets",
+    "note": "6,451 confirmed planets. Large enough to show that the whole table is read, not sampled.",
+    "credit": "NASA Exoplanet Archive (public domain)",
+    "questions": [
+      "Count rows by discovery method",
+      "Average distance parsecs by discovery method",
+      "Median orbital period days",
+      "Maximum radius earths"
+    ]
+  }
+]

@@ -127,6 +127,9 @@ def test_calculation_details_explain_scope_and_missing_values():
     assert "1 missing value is excluded" in details
     assert "Rows used: 2 of 8. Condition: Status is Active" in details
     assert "No values" in details
+    complete = calculation_details(calculation(pd.DataFrame({"amount": [2, 3]})))
+    assert "No value in that column is missing." in complete
+    assert "excluded" not in complete
     counted = calculation(pd.DataFrame({"amount": [None]}), "count")
     assert "Every selected row is counted" in calculation_details(counted)
 

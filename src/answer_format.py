@@ -71,11 +71,13 @@ def calculation_details(answer: dict) -> str:
         calculation = "Count rows. Every selected row is counted, including rows with missing cells."
     else:
         missing = answer.get("missing_values", 0)
-        calculation = (
-            f"{OPERATION_NAMES.get(operation, operation)} of {column}. "
-            f"{missing:,} missing {'value is' if missing == 1 else 'values are'} excluded from the calculation. "
-            "When every value is missing, the result is No values."
+        exclusion = (
+            f"{missing:,} missing {'value is' if missing == 1 else 'values are'} excluded from the "
+            "calculation. When every value is missing, the result is No values."
+            if missing
+            else "No value in that column is missing."
         )
+        calculation = f"{OPERATION_NAMES.get(operation, operation)} of {column}. {exclusion}"
     if group is not None:
         calculation += f" Calculated separately for each {group}; missing group labels are included."
     return (

@@ -238,3 +238,7 @@ src/*_old.py
 src/*_improved.py
 src/migrate_*.py
 __pycache__/
+web/dist/
+web/__pycache__/
+.vercel
+node_modules/
