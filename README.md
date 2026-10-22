@@ -6,7 +6,7 @@ Open a CSV, choose a question, and see the answer. Totals and comparisons run on
 
 **Live demo: <https://tablebeam-eight.vercel.app>** — no install, no account, nothing uploaded.
 
-[![Tablebeam answering "Total annual revenue by owner", showing the arithmetic and the four rows behind the number](docs/demo.webp)](https://tablebeam-eight.vercel.app)
+[![Tablebeam answering "Average mass earths by discovery method" over the NASA Exoplanet Archive, with the arithmetic and the six planets behind the astrometry figure](docs/demo.webp)](https://tablebeam-eight.vercel.app)
 
 [![Tests](https://github.com/fortunexbt/tablebeam/actions/workflows/test.yml/badge.svg)](https://github.com/fortunexbt/tablebeam/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22d3ee.svg)](LICENSE)
@@ -25,10 +25,23 @@ bash web/build.sh
 python -m http.server 8000 -d web/dist
 ```
 
-Limits: the runtime is about 19 MB on first load, then cached by the browser.
-Unrecognised questions, which the desktop app sends to a model you run yourself, show a
-stored example instead; the demo never calls a model. `tests/test_web_demo.py` fails if
-the copied modules drift from `src/`.
+Limits: the runtime is about 19 MB on first load, then cached by the browser. The
+optional AI path is not in the demo. Questions outside the recognised forms get a note
+saying they run in the desktop app with a model you host yourself (LM Studio or Ollama);
+the page never calls a model. `tests/test_web_demo.py` fails if the copied modules drift
+from `src/`.
+
+Bundled data, unmodified apart from column names:
+
+- **Confirmed exoplanets**: all 6,451 rows of the
+  [NASA Exoplanet Archive](https://exoplanetarchive.ipac.caltech.edu/) Planetary Systems
+  Composite Parameters table (`pscomppars`), retrieved 22 October 2026 through its TAP
+  service. This research has made use of the NASA Exoplanet Archive, which is operated by
+  the California Institute of Technology, under contract with NASA under the Exoplanet
+  Exploration Program.
+- **Palmer penguins**: `penguins.csv` from
+  [palmerpenguins](https://allisonhorst.github.io/palmerpenguins/) by Horst, Hill and
+  Gorman, CC0 1.0. Data collected by Dr. Kristen Gorman and the Palmer Station LTER.
 
 ## Start
 

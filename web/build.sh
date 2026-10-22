@@ -16,7 +16,6 @@ for module in answer_format data_pipeline question_actions table_analysis; do
   cp "$root/src/$module.py" "$out/engine/"
 done
 cp "$root"/web/datasets/*.csv "$out/datasets/"
-cp "$root/sample_data.csv" "$out/datasets/clients.csv"
 cp "$root"/web/fonts/*.woff2 "$out/fonts/"
 
 echo "built $out"

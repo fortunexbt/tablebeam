@@ -57,21 +57,22 @@ def test_each_bundled_question_parses_and_answers(engine, dist):
 
 
 def test_written_out_arithmetic_matches_the_result(engine, dist):
-    engine.load((dist / "datasets" / "clients.csv").read_bytes(), "Client accounts")
-    engine.ask("Total annual revenue by owner")
+    engine.load((dist / "datasets" / "exoplanets.csv").read_bytes(), "Confirmed exoplanets")
+    engine.ask("Average mass earths by discovery method")
     found = engine.evidence(0)
-    terms, total = found["working"].split(" = ")
-    assert sum(int(term) for term in terms.split(" + ")) == int(total)
+    terms, mean = found["working"].split(" = ")
+    total, count = terms.removeprefix("(").split(") / ")
+    values = [float(term) for term in total.split(" + ")]
+    assert len(values) == int(count)
+    assert sum(values) / len(values) == pytest.approx(float(mean), rel=1e-12)
     assert len(found["rows"]) == found["count"]
 
 
 def test_an_unsupported_question_asks_for_the_model_instead_of_guessing(engine, dist):
-    engine.load((dist / "datasets" / "clients.csv").read_bytes(), "Client accounts")
-    assert engine.ask("which owners are below a health score of 70?")["kind"] == "needs_ai"
+    engine.load((dist / "datasets" / "penguins.csv").read_bytes(), "Palmer penguins")
+    assert engine.ask("which penguins are heavier than 5000 g?")["kind"] == "needs_ai"
 
 
-def test_the_recorded_example_keeps_the_app_answer_schema(dist):
-    answer = json.loads((dist / "recorded-answer.json").read_text())["answer"]
-    assert answer["kind"] == "ai"
-    assert {"question", "text", "coverage", "sources", "profile"} <= answer.keys()
-    assert all({"citation", "row_number", "content"} <= source.keys() for source in answer["sources"])
+def test_every_bundled_table_names_its_source(dist):
+    for dataset in json.loads((dist / "catalog.json").read_text()):
+        assert dataset["credit"] and dataset["url"].startswith("https://")

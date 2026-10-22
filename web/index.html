@@ -55,11 +55,11 @@
     <h2 class="label" id="ask-heading">Question</h2>
     <form id="ask-form" autocomplete="off">
       <input id="question" name="question" type="text" enterkeyhint="go" spellcheck="false"
-             aria-describedby="forms" placeholder="Total annual revenue by owner">
+             aria-describedby="forms" placeholder="Average mass earths by discovery method">
       <button type="submit" id="submit">Answer it</button>
     </form>
     <div class="chips" id="chips"></div>
-    <p class="aside" id="forms">Recognised forms: <span class="mono">Count rows</span>, <span class="mono">Total · Sum · Average · Median · Minimum · Maximum &lt;column&gt;</span>, each optionally <span class="mono">by &lt;column&gt;</span>. Anything else is handed to a local model you run yourself, which this demo cannot do.</p>
+    <p class="aside" id="forms">Recognised forms: <span class="mono">Count rows</span>, <span class="mono">Total · Sum · Average · Median · Minimum · Maximum &lt;column&gt;</span>, each optionally <span class="mono">by &lt;column&gt;</span>. In the desktop app, other questions can go to a model you run locally with LM Studio or Ollama. This page runs no model.</p>
     <p class="failure" id="failure" hidden></p>
   </section>
 
@@ -86,21 +86,6 @@
         <p class="caption" id="evidence-caption"></p>
         <p><button type="button" id="download">Download these rows as CSV</button></p>
       </div>
-    </div>
-  </section>
-
-  <section class="band recorded" aria-labelledby="recorded-heading" id="recorded" hidden>
-    <h2 class="label" id="recorded-heading">Not a recognised question</h2>
-    <p id="recorded-intro"></p>
-    <div class="transcript">
-      <p class="tag">Recorded example · no model runs on this page</p>
-      <p class="restated" id="recorded-question"></p>
-      <div id="recorded-text"></div>
-      <p class="caption" id="recorded-coverage"></p>
-      <details>
-        <summary>The rows and profile the model was given</summary>
-        <pre class="mono" id="recorded-sources"></pre>
-      </details>
     </div>
   </section>
 </main>

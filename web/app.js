@@ -14,10 +14,7 @@ const nodes = {
   total: el("total"), groups: el("groups"), timing: el("timing"), parsed: el("parsed"),
   method: el("method"), evidenceOf: el("evidence-of"), working: el("working"),
   evidence: el("evidence"), evidenceCaption: el("evidence-caption"), download: el("download"),
-  recorded: el("recorded"),
-  recordedIntro: el("recorded-intro"), recordedQuestion: el("recorded-question"),
-  recordedText: el("recorded-text"), recordedCoverage: el("recorded-coverage"),
-  recordedSources: el("recorded-sources"), credits: el("credits"),
+  credits: el("credits"),
 };
 
 const STAGES = {
@@ -26,7 +23,7 @@ const STAGES = {
   engine: "Loading Tablebeam's own modules…",
 };
 
-const state = { catalog: [], recorded: null, dataset: null, table: null, answer: null, group: null };
+const state = { catalog: [], dataset: null, table: null, answer: null, group: null };
 
 /* --- worker ---------------------------------------------------------- */
 
@@ -98,14 +95,7 @@ function renderRows(table, columns, rows) {
 
 function paragraphs(node, text) {
   clear(node);
-  for (const block of text.split("\n\n")) {
-    if (block.startsWith("- ")) {
-      const list = add(node, "ul");
-      for (const item of block.split("\n")) add(list, "li", item.replace(/^- /, ""));
-    } else {
-      add(node, "p", block.replace(/\n/g, " "));
-    }
-  }
+  for (const block of text.split("\n\n")) add(node, "p", block.replace(/\n/g, " "));
 }
 
 function fail(reason) {
@@ -154,7 +144,6 @@ function renderTable(dataset, table) {
 async function openTable(dataset, bytes) {
   nodes.failure.hidden = true;
   nodes.answer.hidden = true;
-  nodes.recorded.hidden = true;
   state.dataset = dataset;
   for (const button of nodes.sources.children) {
     button.setAttribute("aria-pressed", String(button.dataset.file === dataset.file));
@@ -194,7 +183,7 @@ function renderGroups(answer) {
     const bar = add(button, "span", null, "bar");
     bar.style.width = widest > 0 ? `${Math.max(1, (row.size / widest) * 100)}%` : "1px";
     add(button, "span", row.value, "amount");
-    add(button, "span", `${row.rows.toLocaleString()} rows`, "rows");
+    add(button, "span", `${row.rows.toLocaleString()} ${row.rows === 1 ? "row" : "rows"}`, "rows");
     button.dataset.index = row.index;
     button.onclick = () => showEvidence(row.index);
   }
@@ -204,7 +193,6 @@ function renderGroups(answer) {
 
 function renderAnswer(answer) {
   state.answer = answer;
-  nodes.recorded.hidden = true;
   nodes.restated.textContent = answer.question;
   nodes.parsed.textContent = `${answer.parsed}\n${answer.call}`;
   paragraphs(nodes.method, answer.details);
@@ -249,30 +237,20 @@ async function showEvidence(groupIndex) {
   nodes.evidenceCaption.textContent += " The # column is the row's position in the file.";
 }
 
-function renderRecorded(question) {
-  const { answer, model, dataset } = state.recorded;
-  nodes.answer.hidden = true;
-  nodes.recordedIntro.textContent =
-    `Tablebeam did not recognise “${question}” as one of the forms it computes over this table. ` +
-    `In the desktop app a question like that goes to a model running on your own machine. This page ` +
-    `runs no model, so here is a stored example of what comes back, using ${dataset} and ${model}.`;
-  nodes.recordedQuestion.textContent = answer.question;
-  paragraphs(nodes.recordedText, answer.text);
-  nodes.recordedCoverage.textContent = answer.coverage;
-  nodes.recordedSources.textContent = [
-    ...answer.sources.map((source) => `${source.citation} · row ${source.row_number}\n${source.content}`),
-    `Table profile given to the model\n${answer.profile}`,
-  ].join("\n\n");
-  nodes.recorded.hidden = false;
-}
-
 async function ask(question) {
   nodes.failure.hidden = true;
   nodes.submit.disabled = true;
   try {
     const answer = await engine("ask", { question });
-    if (answer.kind === "needs_ai") renderRecorded(answer.question);
-    else await renderAnswer(answer);
+    if (answer.kind === "needs_ai") {
+      nodes.answer.hidden = true;
+      fail(
+        `Tablebeam does not compute “${answer.question}” itself. In the desktop app you can send ` +
+          "it to a model you run locally with LM Studio or Ollama. This page runs no model.",
+      );
+    } else {
+      await renderAnswer(answer);
+    }
   } catch (error) {
     fail(error.message);
   } finally {
@@ -307,12 +285,8 @@ nodes.file.onchange = async () => {
 };
 
 async function start() {
-  const [catalog, recorded] = await Promise.all([
-    fetch("/catalog.json").then((response) => response.json()),
-    fetch("/recorded-answer.json").then((response) => response.json()),
-  ]);
+  const catalog = await fetch("/catalog.json").then((response) => response.json());
   state.catalog = catalog;
-  state.recorded = recorded;
 
   for (const dataset of catalog) {
     const button = add(nodes.sources, "button", dataset.name);
@@ -321,8 +295,12 @@ async function start() {
     button.setAttribute("aria-pressed", "false");
     button.onclick = () => openBundled(dataset);
   }
-  nodes.credits.textContent =
-    "Tables: " + catalog.map((dataset) => `${dataset.name} — ${dataset.credit}`).join(" · ");
+  nodes.credits.append("Data: ");
+  catalog.forEach((dataset, index) => {
+    if (index) nodes.credits.append(" · ");
+    add(nodes.credits, "a", dataset.name).href = dataset.url;
+    nodes.credits.append(`, ${dataset.credit}`);
+  });
 
   try {
     const versions = await ready;
