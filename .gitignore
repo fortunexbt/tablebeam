@@ -237,3 +237,4 @@ src/*_test.py
 src/*_old.py
 src/*_improved.py
 src/migrate_*.py
+__pycache__/
