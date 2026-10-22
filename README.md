@@ -4,8 +4,44 @@
 
 Open a CSV, choose a question, and see the answer. Totals and comparisons run on your computer. Connect [LM Studio](https://lmstudio.ai/) or [Ollama](https://ollama.com/) when you want an AI interpretation.
 
+**Live demo: <https://tablebeam-eight.vercel.app>** — no install, no account, nothing uploaded.
+
+[![Tablebeam answering "Average mass earths by discovery method" over the NASA Exoplanet Archive, with the arithmetic and the six planets behind the astrometry figure](docs/demo.webp)](https://tablebeam-eight.vercel.app)
+
 [![Tests](https://github.com/fortunexbt/tablebeam/actions/workflows/test.yml/badge.svg)](https://github.com/fortunexbt/tablebeam/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22d3ee.svg)](LICENSE)
+
+## Browser demo
+
+The demo page runs the real thing. `web/build.sh` copies `src/answer_format.py`,
+`src/data_pipeline.py`, `src/question_actions.py` and `src/table_analysis.py` into the
+static output unchanged, and a module worker loads them into CPython 3.14 and pandas
+3.0 compiled to WebAssembly. Your CSV is read in the tab and never uploaded. Every
+answer shows what the question parsed to, the function call behind it, the written-out
+arithmetic, and the rows used.
+
+```bash
+bash web/build.sh
+python -m http.server 8000 -d web/dist
+```
+
+Limits: the runtime is about 19 MB on first load, then cached by the browser. The
+optional AI path is not in the demo. Questions outside the recognised forms get a note
+saying they run in the desktop app with a model you host yourself (LM Studio or Ollama);
+the page never calls a model. `tests/test_web_demo.py` fails if the copied modules drift
+from `src/`.
+
+Bundled data, unmodified apart from column names:
+
+- **Confirmed exoplanets**: all 6,451 rows of the
+  [NASA Exoplanet Archive](https://exoplanetarchive.ipac.caltech.edu/) Planetary Systems
+  Composite Parameters table (`pscomppars`), retrieved 22 October 2026 through its TAP
+  service. This research has made use of the NASA Exoplanet Archive, which is operated by
+  the California Institute of Technology, under contract with NASA under the Exoplanet
+  Exploration Program.
+- **Palmer penguins**: `penguins.csv` from
+  [palmerpenguins](https://allisonhorst.github.io/palmerpenguins/) by Horst, Hill and
+  Gorman, CC0 1.0. Data collected by Dr. Kristen Gorman and the Palmer Station LTER.
 
 ## Start
 
@@ -122,10 +158,10 @@ The image includes a Streamlit health check at `/_stcore/health`.
 python -m pip install -r requirements-dev.txt
 pytest -q
 python -m py_compile src/*.py
-bash -n start.sh
+bash -n start.sh web/build.sh
 ```
 
-Tests cover CSV boundaries, conservative question parsing, exact calculations, safe result rendering, provider responses, FastAPI behavior, and complete Streamlit workflows. They use fake provider responses and require no LM Studio or Ollama. CI runs Python 3.10–3.12.
+Tests cover CSV boundaries, conservative question parsing, exact calculations, safe result rendering, provider responses, FastAPI behavior, complete Streamlit workflows, and the browser demo's copy of the engine. They use fake provider responses and require no LM Studio or Ollama. CI runs Python 3.10–3.12.
 
 See [the changelog](CHANGELOG.md) for the current changes.
 

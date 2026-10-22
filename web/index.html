@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tablebeam — ask a spreadsheet a question, then check the answer</title>
+<meta name="description" content="Tablebeam answers totals, averages and counts from a CSV by reading every row, and shows the arithmetic and the rows behind each number. This demo runs the app's own Python in your browser.">
+<meta name="theme-color" content="#f4f5f2">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:title" content="Tablebeam">
+<meta property="og:description" content="Ask a spreadsheet a question, then check the answer. Totals and comparisons computed exactly, in your browser.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://tablebeam-eight.vercel.app/">
+<meta property="og:image" content="https://tablebeam-eight.vercel.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preload" href="/fonts/newsreader.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/plex-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<a class="skip" href="#ask">Skip to the question</a>
+
+<header class="masthead">
+  <p class="wordmark"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 20 20"><path d="M2 4h16M2 9.5h16M2 15h16" stroke="currentColor" stroke-width="1.4" fill="none"/><path d="M10 1v18" stroke="currentColor" stroke-width="2.6" fill="none"/></svg>Tablebeam</p>
+  <h1>Ask a spreadsheet a question.<br>Then check the answer.</h1>
+  <p class="lede">Totals, averages and counts over every row, shown with the arithmetic behind them. The app's own Python runs here in WebAssembly, so your file stays in this tab.</p>
+  <p class="stamp" id="runtime">Starting CPython and pandas in a background thread…</p>
+</header>
+
+<main>
+  <section class="band" aria-labelledby="table-heading">
+    <h2 class="label" id="table-heading">Table</h2>
+    <div class="sources" id="sources" role="group" aria-label="Choose a table"></div>
+    <p class="file-row">
+      <label class="file">
+        <input type="file" id="file" accept=".csv,text/csv">
+        <span>Open your own CSV</span>
+      </label>
+      <span class="aside">Read in this tab by the same parser the app uses. Nothing is uploaded.</span>
+    </p>
+    <div id="table-card" class="card" hidden>
+      <p class="shape"><strong id="table-name"></strong><span id="table-shape" class="mono"></span><span id="table-parse" class="mono"></span></p>
+      <p class="note" id="table-note"></p>
+      <ul class="columns" id="columns"></ul>
+      <p class="caption" id="columns-caption"></p>
+      <ul class="warnings" id="warnings" hidden></ul>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="ask-heading" id="ask">
+    <h2 class="label" id="ask-heading">Question</h2>
+    <form id="ask-form" autocomplete="off">
+      <input id="question" name="question" type="text" enterkeyhint="go" spellcheck="false"
+             aria-describedby="forms" placeholder="Average mass earths by discovery method">
+      <button type="submit" id="submit">Answer it</button>
+    </form>
+    <div class="chips" id="chips"></div>
+    <p class="aside" id="forms">Recognised forms: <span class="mono">Count rows</span>, <span class="mono">Total · Sum · Average · Median · Minimum · Maximum &lt;column&gt;</span>, each optionally <span class="mono">by &lt;column&gt;</span>. In the desktop app, other questions can go to a model you run locally with LM Studio or Ollama. This page runs no model.</p>
+    <p class="failure" id="failure" hidden></p>
+  </section>
+
+  <section class="band answer" aria-labelledby="answer-heading" id="answer" hidden>
+    <h2 class="label" id="answer-heading">Answer</h2>
+    <p class="restated" id="restated"></p>
+    <p class="total mono" id="total" hidden></p>
+    <div class="groups" id="groups" role="group" aria-label="Result by group" hidden></div>
+    <p class="stamp" id="timing"></p>
+
+    <div class="receipt">
+      <div class="strip">
+        <h3 class="label">Parsed as</h3>
+        <pre class="mono" id="parsed"></pre>
+      </div>
+      <div class="strip">
+        <h3 class="label">Method</h3>
+        <div id="method"></div>
+      </div>
+      <div class="strip">
+        <h3 class="label">Rows behind <span id="evidence-of">this number</span></h3>
+        <p class="working mono" id="working" hidden></p>
+        <div class="scroll tall"><table id="evidence" class="grid"><thead></thead><tbody></tbody></table></div>
+        <p class="caption" id="evidence-caption"></p>
+        <p><button type="button" id="download">Download these rows as CSV</button></p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p><a href="https://github.com/fortunexbt/tablebeam">Source on GitHub</a> · the demo's answers come from <span class="mono">src/question_actions.py</span>, <span class="mono">src/table_analysis.py</span> and <span class="mono">src/answer_format.py</span>, copied unmodified into the page.</p>
+  <p class="credits" id="credits"></p>
+</footer>
+
+<script src="/app.js" type="module"></script>
+</body>
+</html>
