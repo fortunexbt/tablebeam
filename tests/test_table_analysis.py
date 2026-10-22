@@ -96,7 +96,8 @@ def test_floating_point_aggregate_overflow_is_rejected():
 
 
 def test_grouped_overflow_cannot_be_misreported_as_missing_data():
-    source = pd.DataFrame({"team": ["A"] * 3, "sales": [1e308, 1e308, -1e308]})
+    # The running sum overflows before division in every supported pandas version.
+    source = pd.DataFrame({"team": ["A"] * 3, "sales": [1.7e308] * 3})
     with pytest.raises(TableAnalysisError, match="overflowed"):
         summarize_dataframe(source, "mean", "sales", "team")
 

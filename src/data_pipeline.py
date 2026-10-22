@@ -29,6 +29,7 @@ _CSV_MISSING_VALUES = {
     "1.#IND", "1.#QNAN", "<NA>", "N/A", "NA", "NULL", "NaN", "None", "n/a", "nan", "null",
 }
 _INTEGER_TOKEN = re.compile(r"[+-]?[0-9]+")
+_DATE_CHUNK_ROWS = 256
 
 
 class DataValidationError(ValueError):
@@ -217,6 +218,23 @@ def parse_csv_bytes(
     return normalize_dataframe(dataframe, max_rows=max_rows, source_label=source_label)
 
 
+def _mostly_dates(values: pd.Series) -> bool:
+    """True when at least 90% of the rows parse as dates.
+
+    With ``format="mixed"`` each value parses on its own, so parsing stops once
+    the failures already rule the column out. Free text would otherwise cost a
+    dateutil attempt for every row, which takes seconds on a few thousand rows.
+    """
+
+    failures = 0
+    for start in range(0, len(values), _DATE_CHUNK_ROWS):
+        chunk = values.iloc[start:start + _DATE_CHUNK_ROWS]
+        failures += int(pd.to_datetime(chunk, errors="coerce", format="mixed").isna().sum())
+        if failures * 10 > len(values):
+            return False
+    return len(values) > 0
+
+
 def profile_dataframe(df: pd.DataFrame) -> DataProfile:
     """Return useful, non-generative facts about a normalized dataframe."""
 
@@ -238,10 +256,8 @@ def profile_dataframe(df: pd.DataFrame) -> DataProfile:
             continue
         if pd.api.types.is_datetime64_any_dtype(df[column]):
             date_like.append(str(column))
-        elif pd.api.types.is_string_dtype(df[column]):
-            parsed = pd.to_datetime(df[column], errors="coerce", format="mixed")
-            if len(df) and parsed.notna().mean() >= 0.9:
-                date_like.append(str(column))
+        elif pd.api.types.is_string_dtype(df[column]) and _mostly_dates(df[column]):
+            date_like.append(str(column))
 
     for column, count in missing.items():
         if count == len(df):

@@ -1,0 +1,28 @@
+[
+  {
+    "file": "exoplanets.csv",
+    "name": "Confirmed exoplanets",
+    "note": "Every confirmed planet in the NASA Exoplanet Archive, one row each. Some cells are blank where no measurement exists.",
+    "credit": "NASA Exoplanet Archive, Planetary Systems Composite Parameters table, retrieved 22 October 2026",
+    "url": "https://exoplanetarchive.ipac.caltech.edu/",
+    "questions": [
+      "Average mass earths by discovery method",
+      "Count rows by discovery method",
+      "Median orbital period days",
+      "Maximum radius earths"
+    ]
+  },
+  {
+    "file": "penguins.csv",
+    "name": "Palmer penguins",
+    "note": "344 adult penguins measured at Palmer Station, Antarctica, 2007 to 2009. Some cells are blank.",
+    "credit": "Horst, Hill & Gorman, palmerpenguins, CC0 1.0",
+    "url": "https://allisonhorst.github.io/palmerpenguins/",
+    "questions": [
+      "Average body mass g by species",
+      "Count rows by island",
+      "Median bill depth mm by sex",
+      "Maximum flipper length mm"
+    ]
+  }
+]

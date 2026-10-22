@@ -1,0 +1,8 @@
+{
+  "name": "tablebeam-demo",
+  "private": true,
+  "description": "Build script for the static browser demo in web/",
+  "scripts": {
+    "build": "bash web/build.sh"
+  }
+}
