@@ -8,17 +8,15 @@ import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from answer_view import (
+from answer_format import (
     MAX_EXACT_JS_INTEGER,
-    ai_answer_markdown,
     calculation_details,
     chart_data,
-    chart_spec,
     display_result,
     format_value,
-    plain_markdown,
     requires_integer_text,
 )
+from answer_view import ai_answer_markdown, chart_spec, plain_markdown
 from table_analysis import csv_for_download, summarize_dataframe
 
 
