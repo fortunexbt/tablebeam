@@ -9,7 +9,8 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from answer_view import display_result, render_answer
+from answer_format import display_result
+from answer_view import render_answer
 from assistant_core import LocalTable, OpenAICompatibleClient, ProviderError
 from provider_control import ProviderController, ProviderState, valid_server_address
 from question_actions import Calculation, friendly_column, parse_question, suggested_questions
