@@ -5,6 +5,7 @@ All notable changes to Tablebeam are documented here. The project follows
 
 ## Unreleased
 
+- Publish a browser demo that runs the parser and calculations themselves, through Pyodide, over an unmodified copy of `src/`, and show the parsed call, the arithmetic and the rows behind every answer.
 - Replace the dashboard and persistent setup sidebar with one path: open a table, ask a question, read one answer.
 - Add conservative built-in question parsing, schema-based examples, and explicit optional AI routing.
 - Open CSV uploads immediately, preserve the current table on failed replacement, and put Google Sheets and AI configuration in contextual controls.

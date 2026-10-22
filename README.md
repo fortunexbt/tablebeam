@@ -4,8 +4,31 @@
 
 Open a CSV, choose a question, and see the answer. Totals and comparisons run on your computer. Connect [LM Studio](https://lmstudio.ai/) or [Ollama](https://ollama.com/) when you want an AI interpretation.
 
+**Live demo: <https://tablebeam-eight.vercel.app>** — no install, no account, nothing uploaded.
+
+[![Tablebeam answering "Total annual revenue by owner", showing the arithmetic and the four rows behind the number](docs/demo.webp)](https://tablebeam-eight.vercel.app)
+
 [![Tests](https://github.com/fortunexbt/tablebeam/actions/workflows/test.yml/badge.svg)](https://github.com/fortunexbt/tablebeam/actions/workflows/test.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22d3ee.svg)](LICENSE)
+
+## Browser demo
+
+The demo page runs the real thing. `web/build.sh` copies `src/answer_format.py`,
+`src/data_pipeline.py`, `src/question_actions.py` and `src/table_analysis.py` into the
+static output unchanged, and a module worker loads them into CPython 3.14 and pandas
+3.0 compiled to WebAssembly. Your CSV is read in the tab and never uploaded. Every
+answer shows what the question parsed to, the function call behind it, the written-out
+arithmetic, and the rows used.
+
+```bash
+bash web/build.sh
+python -m http.server 8000 -d web/dist
+```
+
+Limits: the runtime is about 19 MB on first load, then cached by the browser.
+Unrecognised questions, which the desktop app sends to a model you run yourself, show a
+stored example instead; the demo never calls a model. `tests/test_web_demo.py` fails if
+the copied modules drift from `src/`.
 
 ## Start
 
@@ -122,10 +145,10 @@ The image includes a Streamlit health check at `/_stcore/health`.
 python -m pip install -r requirements-dev.txt
 pytest -q
 python -m py_compile src/*.py
-bash -n start.sh
+bash -n start.sh web/build.sh
 ```
 
-Tests cover CSV boundaries, conservative question parsing, exact calculations, safe result rendering, provider responses, FastAPI behavior, and complete Streamlit workflows. They use fake provider responses and require no LM Studio or Ollama. CI runs Python 3.10–3.12.
+Tests cover CSV boundaries, conservative question parsing, exact calculations, safe result rendering, provider responses, FastAPI behavior, complete Streamlit workflows, and the browser demo's copy of the engine. They use fake provider responses and require no LM Studio or Ollama. CI runs Python 3.10–3.12.
 
 See [the changelog](CHANGELOG.md) for the current changes.
 
