@@ -245,7 +245,10 @@ button:active, .file:active span { transform: scale(0.975); }
   overscroll-behavior-x: contain;
   scrollbar-color: var(--rule-strong) transparent;
 }
-.scroll::-webkit-scrollbar { height: 9px; }
+@media (min-width: 48rem) {
+  .scroll.tall { max-height: 26rem; overflow-y: auto; }
+}
+.scroll::-webkit-scrollbar { height: 9px; width: 9px; }
 .scroll::-webkit-scrollbar-thumb { background: var(--rule-strong); }
 .scroll::-webkit-scrollbar-track { background: transparent; }
 

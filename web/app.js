@@ -1,5 +1,8 @@
 /* The page is a thin shell: every number it shows comes back from worker.js,
- * which runs the app's own Python. Nothing is computed here. */
+ * which runs the app's own Python. Nothing is computed here.
+ *
+ * Pyodide hands Python's None to JavaScript as undefined, so absent fields are
+ * tested with == null rather than === null. */
 
 const el = (id) => document.getElementById(id);
 const nodes = {
@@ -88,7 +91,7 @@ function renderRows(table, columns, rows) {
     row.cells.forEach((cell, index) => {
       const numeric = columns[index]?.numeric;
       const node = add(line, "td", cell ?? "—", numeric ? "num" : null);
-      if (cell === null) node.classList.add("blank");
+      if (cell == null) node.classList.add("blank");
     });
   }
 }
@@ -211,10 +214,10 @@ function renderAnswer(answer) {
       ? " These totals are past the largest integer JavaScript can hold exactly, so they are printed as Python computed them."
       : "");
 
-  if (answer.group_by === null) {
+  if (answer.group_by == null) {
     nodes.total.textContent = answer.headline;
     nodes.total.hidden = false;
-    nodes.groups.hidden = true;
+    clear(nodes.groups).hidden = true;
   } else {
     renderGroups(answer);
   }
@@ -222,7 +225,7 @@ function renderAnswer(answer) {
   nodes.answer.hidden = false;
   nodes.answer.removeAttribute("data-fresh");
   requestAnimationFrame(() => nodes.answer.setAttribute("data-fresh", ""));
-  return showEvidence(answer.group_by === null ? null : 0);
+  return showEvidence(answer.group_by == null ? null : 0);
 }
 
 async function showEvidence(groupIndex) {
@@ -235,9 +238,9 @@ async function showEvidence(groupIndex) {
     nodes.groups.querySelector(`[data-index="${groupIndex}"]`)?.setAttribute("aria-pressed", "true");
   }
   nodes.evidenceOf.textContent =
-    evidence.group === null ? "this number" : `${evidence.group_by} = ${evidence.group}`;
+    evidence.group == null ? "this number" : `${evidence.group_by} = ${evidence.group}`;
   nodes.working.textContent = evidence.working ?? "";
-  nodes.working.hidden = evidence.working === null;
+  nodes.working.hidden = evidence.working == null;
   renderRows(nodes.evidence, state.table.columns, evidence.rows);
   nodes.evidenceCaption.textContent =
     evidence.rows.length < evidence.count

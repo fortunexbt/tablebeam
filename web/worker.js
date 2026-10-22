@@ -60,11 +60,15 @@ async function boot() {
   });
 }
 
+/* Pyodide turns JavaScript null into a JsNull object rather than Python's None,
+ * so an absent group index is passed as undefined. */
+const index = (groupIndex) => (groupIndex == null ? undefined : groupIndex);
+
 const calls = {
   load: ({ bytes, label }) => engine.load(bytes, label),
   ask: ({ question }) => engine.ask(question),
-  evidence: ({ groupIndex }) => engine.evidence(groupIndex),
-  rows_csv: ({ groupIndex }) => engine.rows_csv(groupIndex),
+  evidence: ({ groupIndex }) => engine.evidence(index(groupIndex)),
+  rows_csv: ({ groupIndex }) => engine.rows_csv(index(groupIndex)),
 };
 
 onmessage = ({ data }) => {

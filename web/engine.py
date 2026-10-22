@@ -18,7 +18,7 @@ from data_pipeline import parse_csv_bytes, profile_dataframe
 from question_actions import friendly_column, parse_question, suggested_questions
 from table_analysis import csv_for_download, summarize_dataframe
 
-EVIDENCE_ROWS = 50
+EVIDENCE_ROWS = 25
 # Above this many values the written-out arithmetic stops being checkable by eye.
 MAX_WORKING_VALUES = 12
 
