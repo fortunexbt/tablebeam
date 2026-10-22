@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tablebeam — ask a spreadsheet a question, then check the answer</title>
 <meta name="description" content="Tablebeam answers totals, averages and counts from a CSV by reading every row, and shows the arithmetic and the rows behind each number. This demo runs the app's own Python in your browser.">
-<meta name="theme-color" content="#f3f0e8">
+<meta name="theme-color" content="#f4f5f2">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta property="og:title" content="Tablebeam">
@@ -37,13 +37,13 @@
     <div class="sources" id="sources" role="group" aria-label="Choose a table"></div>
     <p class="file-row">
       <label class="file">
-        <input type="file" id="file" accept=".csv,text/csv" hidden>
+        <input type="file" id="file" accept=".csv,text/csv">
         <span>Open your own CSV</span>
       </label>
       <span class="aside">Read in this tab by the same parser the app uses. Nothing is uploaded.</span>
     </p>
     <div id="table-card" class="card" hidden>
-      <p class="shape"><strong id="table-name"></strong><span id="table-shape" class="mono"></span></p>
+      <p class="shape"><strong id="table-name"></strong><span id="table-shape" class="mono"></span><span id="table-parse" class="mono"></span></p>
       <p class="note" id="table-note"></p>
       <ul class="columns" id="columns"></ul>
       <p class="caption" id="columns-caption"></p>

@@ -5,7 +5,7 @@ const el = (id) => document.getElementById(id);
 const nodes = {
   runtime: el("runtime"), sources: el("sources"), file: el("file"),
   tableCard: el("table-card"), tableName: el("table-name"), tableShape: el("table-shape"),
-  tableNote: el("table-note"), columns: el("columns"), columnsCaption: el("columns-caption"),
+  tableParse: el("table-parse"), tableNote: el("table-note"), columns: el("columns"), columnsCaption: el("columns-caption"),
   warnings: el("warnings"), form: el("ask-form"), question: el("question"), submit: el("submit"),
   chips: el("chips"), failure: el("failure"), answer: el("answer"), restated: el("restated"),
   total: el("total"), groups: el("groups"), timing: el("timing"), parsed: el("parsed"),
@@ -118,7 +118,8 @@ function renderTable(dataset, table) {
   const columns = table.columns.length;
   nodes.tableShape.textContent =
     `${table.rows.toLocaleString()} ${table.rows === 1 ? "row" : "rows"} × ${columns} ` +
-    `${columns === 1 ? "column" : "columns"} · parsed in ${Math.round(table.ms)} ms`;
+    `${columns === 1 ? "column" : "columns"}`;
+  nodes.tableParse.textContent = `parsed in ${Math.round(table.ms)} ms`;
   nodes.tableNote.textContent = dataset.note;
 
   clear(nodes.columns);
