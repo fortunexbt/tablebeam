@@ -43,6 +43,14 @@ def test_demo_dataset_profiles_date_like_columns():
     assert "last_contacted" in profile.date_like_columns
 
 
+@pytest.mark.parametrize("dates,expected", [(900, True), (899, False)])
+def test_date_detection_keeps_the_ninety_percent_threshold(dates, expected):
+    # Text comes first, so the early exit is exercised across parsing chunks.
+    values = ["not a date"] * (1000 - dates) + ["2025-06-18"] * dates
+    profile = profile_dataframe(normalize_dataframe(pd.DataFrame({"when": values})))
+    assert ("when" in profile.date_like_columns) is expected
+
+
 @pytest.mark.parametrize(
     ("content", "message"),
     [
