@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from decimal import ROUND_HALF_UP, Context, Decimal
 from numbers import Integral
 from typing import Any
 
 import pandas as pd
 
 
+_NOISE = Context(prec=15)
+_DISPLAY = Context(prec=6, rounding=ROUND_HALF_UP)
 MAX_CHART_GROUPS = 20
 MAX_EXACT_JS_INTEGER = 2**53 - 1
 OPERATION_NAMES = {
@@ -28,6 +31,12 @@ def format_value(value: Any) -> str:
         return f"{value:,}"
     if isinstance(value, float) and value.is_integer():
         return f"{value:,.0f}"
+    if isinstance(value, float):
+        # Float arithmetic leaves noise in the last digits: a mean of exactly
+        # 24.81875 arrives as 24.818749999999998 and would show as 24.8187.
+        # Drop the noise at 15 significant digits, then round half up.
+        noiseless = _NOISE.plus(Decimal(value))
+        value = float(_DISPLAY.plus(noiseless))
     return f"{value:,.6g}"
 
 

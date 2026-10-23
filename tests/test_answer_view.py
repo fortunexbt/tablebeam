@@ -62,6 +62,20 @@ def test_nullable_integer_preview_retains_each_digit_and_missing_cell(dtype, val
     pd.testing.assert_frame_equal(frame, original)
 
 
+@pytest.mark.parametrize("values,shown", [
+    # Means that end in a 5 at the seventh significant digit, as several in
+    # Paris's 2022 rent-control table do. The double sits just below the half,
+    # either by representation or by summation noise (24.818749999999998).
+    ([32.3, 32.4375], "32.3688"),
+    ([24.02, 24.97, 25.75, 24.55, 25.08, 25.85, 24.07, 24.26], "24.8188"),
+    ([0.1, 0.2], "0.15"),
+    ([1234567.5, 1234567.5], "1.23457e+06"),
+])
+def test_displayed_value_rounds_the_decimal_half_up(values, shown):
+    frame = pd.DataFrame({"amount": values})
+    assert format_value(summarize_dataframe(frame, "mean", "amount")["value"].iloc[0]) == shown
+
+
 def test_integer_chart_threshold_and_nullable_values():
     assert not requires_integer_text(pd.Series([MAX_EXACT_JS_INTEGER, None], dtype="Int64"))
     assert requires_integer_text(pd.Series([MAX_EXACT_JS_INTEGER + 1, None], dtype="Int64"))
