@@ -85,6 +85,57 @@ Count includes every selected row. A single-number answer (other than a minimum)
 
 Explicit answer/row downloads are UTF-8 BOM CSV and neutralize formula-like text with an apostrophe prefix. Source row numbers refer to the loaded table after empty rows are removed. CSV files, uploads, and Google Sheets imports require unique nonempty headers, consistent record widths, UTF-8, at most 100 MB, and at most 250,000 rows. Integer columns retain every digit, including when some cells are empty.
 
+## Evaluation
+
+`eval/` measures the deterministic engine only: the CSV reader, the question parser and the calculations. It never loads or calls a model. `python eval/run_eval.py` regenerates [`eval/results.md`](eval/results.md), which lists every wrong answer and every executor disagreement, and `eval/results.json`, from inputs pinned by SHA-256 in `eval/inputs/manifest.json`. With the versions in `eval/requirements.txt`, a rerun produces byte-identical files. `eval/build_inputs.py` downloads the sources again and checks them.
+
+Rates below are given with 95% Wilson intervals.
+
+**Real questions.** The set has 954 questions from [WikiTableQuestions](https://github.com/ppasupat/WikiTableQuestions) (Pasupat and Liang, 2015, CC BY-SA 4.0), asked about tables taken from Wikipedia. 554 of them are whole-table counts, totals, averages, minimums or maximums, as identified by [SQUALL](https://github.com/tzshi/squall)'s hand-written SQL (Shi et al., 2020, CC BY-SA 4.0). The other 400 are a fixed sample of the remaining questions (filters, lookups, rankings), and for those a refusal is the correct outcome. The ground truth is SQUALL's SQL run in DuckDB over SQUALL's parsed columns. pandas recomputes it as a cross-check, and it is kept only when it matches the human WikiTableQuestions answer. That dropped 16 questions, which are listed in the results.
+
+| Questions | n | Correct | Refused | Wrong |
+|---|---|---|---|---|
+| As people wrote them | 954 | 41.9% (38.8–45.1), all correct refusals | 100% (99.6–100) | 0.0% (0.0–0.4) |
+| The 554 supported ones, in this README's wording | 554 | 79.1% (75.5–82.2) | 20.6% (17.4–24.1) | 0.4% (0.1–1.3) |
+| The same, before the fixes below | 554 | 79.2% (75.7–82.4) | 14.6% (11.9–17.8) | 6.1% (4.4–8.5) |
+
+The parser accepted none of the 554 supported questions in their original wording, such as "how many total gold medals were won?". A typed question only works in the documented forms. Before the fixes, 32 of the 34 wrong answers were sums, averages, maxima and counts that included the table's own Total or Career row. Those questions are now refused. The 114 refusals break down as: 54 columns that are text rather than numbers (`12,467`, `41 (2)`), 33 total rows, 14 blank headers and 13 duplicate headers.
+
+**The same calculations in four executors.** Each supported question's calculation also ran in pandas (`read_csv`), in SQLite (imported as the sqlite3 shell's `.import` does, with every field stored as TEXT) and in DuckDB (`read_csv` auto-detection), each with its defaults. A second set of 162 calculations ran over four real CSVs whose number formats break readers. These are the U.S. Treasury's [Debt to the Penny](https://fiscaldata.treasury.gov/datasets/debt-to-the-penny/) (public domain; cents on 13-digit amounts, missing values spelled `null`), members of the 9th European Parliament with their X user IDs from Wikidata (CC0; 19-digit IDs and blanks), and the 2022 Paris and 2023 Montpellier rent-control tables from data.gouv.fr (Licence Ouverte 2.0; the Montpellier file writes decimals as `"18,1"`). That set is the exact reference: each cell is parsed as written and aggregated with exact fractions, and DuckDB's `DECIMAL` arithmetic cross-checks it. "Silent wrong" means a number came back wrong with no error.
+
+| Executor | WikiTableQuestions: correct | silent wrong | refused | Hard-format CSVs: correct | silent wrong | refused |
+|---|---|---|---|---|---|---|
+| Tablebeam | 79.1% (75.5–82.2) | 0.4% (0.1–1.3) | 20.6% | 63.0% (55.3–70.0) | 0.0% (0.0–2.3) | 37.0% |
+| pandas | 85.0% (81.8–87.8) | 13.7% (11.1–16.8) | 1.3% | 61.7% (54.0–68.9) | 19.8% (14.3–26.6) | 18.5% |
+| SQLite | 80.5% (77.0–83.6) | 17.2% (14.2–20.5) | 2.4% | 38.9% (31.7–46.6) | 38.9% (31.7–46.6) | 22.2% |
+| DuckDB | 84.5% (81.2–87.2) | 11.7% (9.3–14.7) | 3.8% | 54.9% (47.2–62.4) | 33.3% (26.5–40.9) | 11.7% |
+
+Tablebeam returns fewer answers, and almost every answer it returns is right. Before the fixes its silent-wrong rate on WikiTableQuestions was 6.1% (4.4–8.5): lower than pandas, but not zero. The other executors fail in these ways:
+
+- SQLite compares text, so the minimum X user ID comes back as the empty string. It also averages `null` and `"18,1"` as 0 and 18.
+- pandas reads an ID column that has blanks as float64 and loses the last digits above 2^53. Asked for the maximum of `"18,1"` text, it returns a string.
+- DuckDB reads the columns that contain `null` or `"18,1"` as VARCHAR, then returns their alphabetical minimum and maximum.
+
+Tablebeam refuses every average, median, minimum and maximum over Montpellier's comma decimals (60 calculations), because it does not read `18,1` as a number.
+
+**Provenance.** For each of the 542 answers Tablebeam returned, the evaluation checks that the displayed rows, the downloaded rows, the scope ("All rows" or one group) and the written-out arithmetic all reproduce the number. It also checks that the six-digit figure shown matches the exact value rounded. Before the fixes, 4 provenance checks and 3 displayed figures failed. Now none do.
+
+Fixed during this evaluation, each with a regression test:
+
+- Total rows are refused as described in [Ask a question](#ask-a-question).
+- In the browser demo, TRUE/FALSE group labels showed as 1 and 0.
+- Displayed values that end in a 5 at the seventh significant digit rounded the wrong way, for example 32.36875 shown as 32.3687.
+
+Limits:
+
+- Two thirds of the 554 supported questions are row counts, and only 16 are averages.
+- WikiTableQuestions ships its CSVs with backslash-escaped quotes. The pinned copies are re-quoted to standard CSV with every value unchanged, because Tablebeam and Python's `csv` module reject the originals.
+- The Wikidata and Treasury files are snapshots from 23 October 2026.
+- Every executor runs with its defaults. An analyst who sets column types or a decimal separator would get other numbers. That difference is the point of the comparison, and it is also its limit.
+- "Correct" accepts float noise. Counts, totals, minimums and maximums must be right to the data's last decimal, and averages and medians to within one part in 10^12. Full rules are in `eval/executors.py`.
+- The total-row check is a heuristic. On this data it refused one count that the ground truth expected to include the total row.
+- Related benchmarks (TrustDABench, arXiv 2608.24145; FREB-TQA, arXiv 2404.18585; RobuT, arXiv 2306.14321) perturb tables and questions to test models. Their abstracts don't describe comparing executors' number handling like this, but only the abstracts were checked.
+
 ## Connect AI only when you need it
 
 Open **AI settings**, choose LM Studio or Ollama, and click **Find local models**. Select a ready model, then return to your question and choose **Ask AI**. LM Studio reports which models are loaded; an unloaded model can be explicitly loaded. Ollama can use an installed model and loads it when asked. Tablebeam does not automatically download a model or turn unsupported wording into a generated answer.

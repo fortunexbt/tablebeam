@@ -5,6 +5,10 @@ All notable changes to Tablebeam are documented here. The project follows
 
 ## Unreleased
 
+- Add a reproducible evaluation (`eval/`) on WikiTableQuestions with SQUALL ground truth and four real CSVs, comparing Tablebeam with pandas, SQLite and DuckDB and checking every answer's provenance.
+- Refuse single-number answers over a table that carries its own total row instead of counting it twice.
+- Round displayed values from the decimal they spell, so half-way values such as 32.36875 show as 32.3688.
+- Show TRUE/FALSE group labels as True and False in the browser demo, not 1 and 0.
 - Publish a browser demo that runs the parser and calculations themselves, through Pyodide, over an unmodified copy of `src/`, on real published tables (NASA Exoplanet Archive, Palmer penguins), and show the parsed call, the arithmetic and the rows behind every answer.
 - Replace the dashboard and persistent setup sidebar with one path: open a table, ask a question, read one answer.
 - Add conservative built-in question parsing, schema-based examples, and explicit optional AI routing.
