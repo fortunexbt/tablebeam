@@ -30,6 +30,9 @@ def _cell(value: Any) -> str | None:
     """Exact text for one cell: integers keep every digit, floats round-trip."""
     if value is None or (not isinstance(value, str) and pd.isna(value)):
         return None
+    # bool is an Integral: without this a TRUE/FALSE group would read 1 and 0.
+    if isinstance(value, bool):
+        return str(value)
     if isinstance(value, Integral):
         return str(int(value))
     if isinstance(value, Real):
