@@ -22,6 +22,7 @@ import tarfile
 import unicodedata
 import urllib.parse
 import urllib.request
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -258,16 +259,23 @@ def rfc4180(content: bytes) -> bytes:
 def build_numeric(refresh: bool) -> list[dict]:
     target = INPUTS / "numeric"
     target.mkdir(parents=True, exist_ok=True)
+    manifest = INPUTS / "manifest.json"
+    previous = {entry["file"]: entry for entry in json.loads(manifest.read_text("utf-8"))["numeric"]} \
+        if manifest.exists() else {}
     entries = []
     for spec in NUMERIC_TABLES:
         accept = "text/csv" if "wikidata" in spec["url"] else None
         path = target / spec["file"]
+        name = f"numeric/{spec['file']}"
         # Live services change; keep the committed snapshot unless asked.
-        content = fetch(spec["url"], accept) if refresh or not path.exists() else path.read_bytes()
+        if refresh or name not in previous or not path.exists():
+            content, retrieved = fetch(spec["url"], accept), date.today().isoformat()
+        else:
+            content, retrieved = path.read_bytes(), previous[name]["retrieved"]
         if spec["sha256"] and sha256(content) != spec["sha256"]:
             raise SystemExit(f"{spec['file']} changed upstream: {spec['url']}")
         path.write_bytes(content)
-        entries.append({**spec, "file": f"numeric/{spec['file']}", "sha256": sha256(content)})
+        entries.append({**spec, "file": name, "sha256": sha256(content), "retrieved": retrieved})
     return entries
 
 

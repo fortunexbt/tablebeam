@@ -22,6 +22,7 @@
     "min",
     "max"
    ],
+   "retrieved": "2026-10-23",
    "sha256": "8d3ed902c0e50a61a39b8cf30861d44c47b8694831ae4f7c2fb19daf9ce65787",
    "source": "U.S. Department of the Treasury, Fiscal Data API",
    "title": "Debt to the Penny, daily, 1993-04-01 to 2026-10-21",
@@ -45,6 +46,7 @@
     "min",
     "max"
    ],
+   "retrieved": "2026-10-23",
    "sha256": "d0810c12c46ca308a3f0a640376b17e61857876c8eb346790b9408b9d1791f40",
    "source": "Wikidata Query Service",
    "title": "Members of the 9th European Parliament with their X (Twitter) numeric user ID",
@@ -75,6 +77,7 @@
     "min",
     "max"
    ],
+   "retrieved": "2026-10-23",
    "sha256": "42a9a8bce697b35cc76a9511ab1e0e9e60259375a4d75572d2c51a639c5e47d9",
    "source": "data.gouv.fr, dataset encadrement-des-loyers-de-paris",
    "title": "Encadrement des loyers de Paris 2022 (reference rents, EUR per m2)",
@@ -105,6 +108,7 @@
     "min",
     "max"
    ],
+   "retrieved": "2026-10-23",
    "sha256": "171c1518d9b2b7058d8b9d475eaac7a6d5f859981023d872c9016f562f5ca41b",
    "source": "data.gouv.fr, dataset encadrement-des-loyers-de-montpellier",
    "title": "Encadrement des loyers de Montpellier 2023 (reference rents, EUR per m2)",

@@ -140,21 +140,21 @@
     "n": 716,
     "refused": {
      "ci95": [
-      0.1694,
-      0.2276
+      0.213,
+      0.2758
      ],
-     "count": 141,
+     "count": 174,
      "n": 716,
-     "rate": 0.1969
+     "rate": 0.243
     },
     "silent_wrong": {
      "ci95": [
-      0.0354,
-      0.0672
+      0.0008,
+      0.0101
      ],
-     "count": 35,
+     "count": 2,
      "n": 716,
-     "rate": 0.0489
+     "rate": 0.0028
     }
    }
   },
@@ -279,21 +279,21 @@
    "tablebeam": {
     "correct": {
      "ci95": [
-      0.5468,
-      0.6944
+      0.5531,
+      0.7002
      ],
-     "count": 101,
+     "count": 102,
      "n": 162,
-     "rate": 0.6235
+     "rate": 0.6296
     },
     "exact": {
      "ci95": [
-      0.442,
-      0.5941
+      0.4481,
+      0.6001
      ],
-     "count": 84,
+     "count": 85,
      "n": 162,
-     "rate": 0.5185
+     "rate": 0.5247
     },
     "n": 162,
     "refused": {
@@ -307,12 +307,12 @@
     },
     "silent_wrong": {
      "ci95": [
-      0.0011,
-      0.0341
+      0.0,
+      0.0232
      ],
-     "count": 1,
+     "count": 0,
      "n": 162,
-     "rate": 0.0062
+     "rate": 0.0
     }
    }
   },
@@ -438,21 +438,21 @@
     "tablebeam": {
      "correct": {
       "ci95": [
-       0.0242,
-       0.1478
+       0.0333,
+       0.1678
       ],
-      "count": 4,
+      "count": 5,
       "n": 65,
-      "rate": 0.0615
+      "rate": 0.0769
      },
      "exact": {
       "ci95": [
-       0.0242,
-       0.1478
+       0.0333,
+       0.1678
       ],
-      "count": 4,
+      "count": 5,
       "n": 65,
-      "rate": 0.0615
+      "rate": 0.0769
      },
      "n": 65,
      "refused": {
@@ -466,12 +466,12 @@
      },
      "silent_wrong": {
       "ci95": [
-       0.0027,
-       0.0821
+       0.0,
+       0.0558
       ],
-      "count": 1,
+      "count": 0,
       "n": 65,
-      "rate": 0.0154
+      "rate": 0.0
      }
     }
    },
@@ -1071,15 +1071,6 @@
    "tablebeam": {
     "correct": {
      "ci95": [
-      0.7567,
-      0.8241
-     ],
-     "count": 439,
-     "n": 554,
-     "rate": 0.7924
-    },
-    "exact": {
-     "ci95": [
       0.7548,
       0.8224
      ],
@@ -1087,70 +1078,42 @@
      "n": 554,
      "rate": 0.7906
     },
+    "exact": {
+     "ci95": [
+      0.7529,
+      0.8207
+     ],
+     "count": 437,
+     "n": 554,
+     "rate": 0.7888
+    },
     "n": 554,
     "refused": {
      "ci95": [
-      0.1192,
-      0.1781
+      0.1742,
+      0.2414
      ],
-     "count": 81,
+     "count": 114,
      "n": 554,
-     "rate": 0.1462
+     "rate": 0.2058
     },
     "silent_wrong": {
      "ci95": [
-      0.0442,
-      0.0845
+      0.001,
+      0.0131
      ],
-     "count": 34,
+     "count": 2,
      "n": 554,
-     "rate": 0.0614
+     "rate": 0.0036
     }
    }
   }
  },
- "headline": [
-  {
-   "id": "numeric/paris_rent_control_2022.csv mean(max) by id_zone",
-   "issue": "6: shows 32.3687, the exact value rounds to 32.3688",
-   "split": "numeric"
-  },
-  {
-   "id": "numeric/paris_rent_control_2022.csv mean(ref) by epoque",
-   "issue": "1946-1970: shows 24.8187, the exact value rounds to 24.8188",
-   "split": "numeric"
-  },
-  {
-   "id": "numeric/paris_rent_control_2022.csv mean(max) by epoque",
-   "issue": "Avant 1946: shows 32.3937, the exact value rounds to 32.3938",
-   "split": "numeric"
-  }
- ],
- "inputs_manifest_sha256": "ce9f279ba5078495a94e36e3d1ed9fbb71cb8150404357404e6958c566eac728",
+ "headline": [],
+ "inputs_manifest_sha256": "6115e55f4faed6cc9aa6eadbbc628373c7d3c8bbfe739c6321004215f5616787",
  "provenance": {
-  "answers_checked": 575,
-  "failures": [
-   {
-    "failure": "group '0': the source has 0 matching rows, the answer used 100",
-    "id": "numeric/montpellier_rent_control_2023.csv count(rows) by meuble",
-    "split": "numeric"
-   },
-   {
-    "failure": "group '0': displayed row numbers [0, 1, 2, 3, 4]... are not the first matching rows",
-    "id": "numeric/montpellier_rent_control_2023.csv count(rows) by meuble",
-    "split": "numeric"
-   },
-   {
-    "failure": "group '1': the source has 0 matching rows, the answer used 100",
-    "id": "numeric/montpellier_rent_control_2023.csv count(rows) by meuble",
-    "split": "numeric"
-   },
-   {
-    "failure": "group '1': displayed row numbers [20, 21, 22, 23, 24]... are not the first matching rows",
-    "id": "numeric/montpellier_rent_control_2023.csv count(rows) by meuble",
-    "split": "numeric"
-   }
-  ]
+  "answers_checked": 542,
+  "failures": []
  },
  "questions": {
   "excluded": [
@@ -1300,10 +1263,9 @@
     ]
    },
    {
-    "answer": "72",
+    "detail": "calculation: This looks like a table with a total row: row 10 reads 'Total' in Department. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-61",
-    "outcome": "wrong",
-    "parsed": "sum(Senators)",
+    "outcome": "refused",
     "question": "Total Senators",
     "stratum": "supported",
     "table": "204_246",
@@ -1594,10 +1556,9 @@
     ]
    },
    {
-    "answer": "66",
+    "detail": "calculation: This looks like a table with a total row: row 10 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-251",
-    "outcome": "wrong",
-    "parsed": "sum(Gold)",
+    "outcome": "refused",
     "question": "Total Gold",
     "stratum": "supported",
     "table": "204_785",
@@ -1809,10 +1770,9 @@
     ]
    },
    {
-    "answer": "46",
+    "detail": "calculation: This looks like a table with a total row: row 31 reads 'Total' in Type. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-439",
-    "outcome": "correct",
-    "parsed": "count(rows)",
+    "outcome": "refused",
     "question": "How many rows are there?",
     "stratum": "supported",
     "table": "204_206",
@@ -2475,10 +2435,9 @@
     ]
    },
    {
-    "answer": "10",
+    "detail": "calculation: This looks like a table with a total row: row 10's Passes Defended equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-871",
-    "outcome": "wrong",
-    "parsed": "sum(Passes Defended)",
+    "outcome": "refused",
     "question": "Total Passes Defended",
     "stratum": "supported",
     "table": "204_957",
@@ -2767,10 +2726,9 @@
     ]
    },
    {
-    "answer": "72",
+    "detail": "calculation: This looks like a table with a total row: row 14 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-1095",
-    "outcome": "wrong",
-    "parsed": "sum(Total)",
+    "outcome": "refused",
     "question": "Total Total",
     "stratum": "supported",
     "table": "204_248",
@@ -3319,10 +3277,9 @@
     ]
    },
    {
-    "answer": "12",
+    "detail": "calculation: This looks like a table with a total row: row 4 reads 'Total' in Season. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-1348",
-    "outcome": "wrong",
-    "parsed": "max(Total\nGoals)",
+    "outcome": "refused",
     "question": "Maximum Total Goals",
     "stratum": "supported",
     "table": "202_26",
@@ -3998,10 +3955,9 @@
     ]
    },
    {
-    "answer": "54",
+    "detail": "calculation: This looks like a table with a total row: row 9 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-1907",
-    "outcome": "wrong",
-    "parsed": "sum(Total)",
+    "outcome": "refused",
     "question": "Total Total",
     "stratum": "supported",
     "table": "204_211",
@@ -4224,10 +4180,9 @@
     ]
    },
    {
-    "answer": "254",
+    "detail": "calculation: This looks like a table with a total row: row 10's Games equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-2024",
-    "outcome": "wrong",
-    "parsed": "sum(Games)",
+    "outcome": "refused",
     "question": "Total Games",
     "stratum": "supported",
     "table": "204_957",
@@ -4278,10 +4233,9 @@
     ]
    },
    {
-    "answer": "32",
+    "detail": "calculation: This looks like a table with a total row: row 24 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-2048",
-    "outcome": "wrong",
-    "parsed": "sum(Gold)",
+    "outcome": "refused",
     "question": "Total Gold",
     "stratum": "supported",
     "table": "203_548",
@@ -4782,10 +4736,9 @@
     ]
    },
    {
-    "answer": "8",
+    "detail": "calculation: This looks like a table with a total row: row 8 reads 'Total' in Nation. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-2410",
-    "outcome": "wrong",
-    "parsed": "count(rows)",
+    "outcome": "refused",
     "question": "How many rows are there?",
     "stratum": "supported",
     "table": "204_297",
@@ -5674,10 +5627,9 @@
     ]
    },
    {
-    "answer": "466",
+    "detail": "calculation: This looks like a table with a total row: row 15 reads 'Total' in Season. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-3135",
-    "outcome": "wrong",
-    "parsed": "sum(Matches)",
+    "outcome": "refused",
     "question": "Total Matches",
     "stratum": "supported",
     "table": "204_235",
@@ -6010,10 +5962,9 @@
     ]
    },
    {
-    "answer": "7",
+    "detail": "calculation: This looks like a table with a total row: row 7 reads 'Total' in Ethnicity. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-3418",
-    "outcome": "wrong",
-    "parsed": "count(rows)",
+    "outcome": "refused",
     "question": "How many rows are there?",
     "stratum": "supported",
     "table": "204_257",
@@ -6359,10 +6310,9 @@
     ]
    },
    {
-    "answer": "18",
+    "detail": "calculation: This looks like a table with a total row: row 14 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-3733",
-    "outcome": "wrong",
-    "parsed": "sum(Gold)",
+    "outcome": "refused",
     "question": "Total Gold",
     "stratum": "supported",
     "table": "204_248",
@@ -8715,10 +8665,9 @@
     ]
    },
    {
-    "answer": "2260",
+    "detail": "calculation: This looks like a table with a total row: row 8 reads 'Totals' in Year. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-5386",
-    "outcome": "wrong",
-    "parsed": "sum(Laps)",
+    "outcome": "refused",
     "question": "Total Laps",
     "stratum": "supported",
     "table": "203_339",
@@ -9782,10 +9731,9 @@
     ]
    },
    {
-    "answer": "10",
+    "detail": "calculation: This looks like a table with a total row: row 21 reads 'TOTALS' in Name. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-5962",
-    "outcome": "wrong",
-    "parsed": "sum(UEFA Cup)",
+    "outcome": "refused",
     "question": "Total UEFA Cup",
     "stratum": "supported",
     "table": "204_978",
@@ -9822,10 +9770,9 @@
     ]
    },
    {
-    "answer": "4",
+    "detail": "calculation: This looks like a table with a total row: row 7 reads 'Total' in Year. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-5972",
-    "outcome": "wrong",
-    "parsed": "sum(Punts Returned for Touchdown)",
+    "outcome": "refused",
     "question": "Total Punts Returned for Touchdown",
     "stratum": "supported",
     "table": "203_516",
@@ -9862,10 +9809,9 @@
     ]
    },
    {
-    "answer": "54",
+    "detail": "calculation: This looks like a table with a total row: row 7 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-5997",
-    "outcome": "wrong",
-    "parsed": "sum(Total)",
+    "outcome": "refused",
     "question": "Total Total",
     "stratum": "supported",
     "table": "203_576",
@@ -10153,10 +10099,9 @@
     ]
    },
    {
-    "answer": "16",
+    "detail": "calculation: This looks like a table with a total row: row 16 reads 'Total' in Jurisdiction. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-6147",
-    "outcome": "wrong",
-    "parsed": "count(rows)",
+    "outcome": "refused",
     "question": "How many rows are there?",
     "stratum": "supported",
     "table": "204_284",
@@ -10420,10 +10365,9 @@
     ]
    },
    {
-    "answer": "83.57142857142857",
+    "detail": "calculation: This looks like a table with a total row: row 14's Tackles equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-6411",
-    "outcome": "wrong",
-    "parsed": "mean(Tackles)",
+    "outcome": "refused",
     "question": "Average Tackles",
     "stratum": "supported",
     "table": "204_756",
@@ -11387,10 +11331,9 @@
     ]
    },
    {
-    "answer": "72",
+    "detail": "calculation: This looks like a table with a total row: row 10 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-7291",
-    "outcome": "wrong",
-    "parsed": "sum(Total)",
+    "outcome": "refused",
     "question": "Total Total",
     "stratum": "supported",
     "table": "204_302",
@@ -11878,10 +11821,9 @@
     ]
    },
    {
-    "answer": "17",
+    "detail": "calculation: This looks like a table with a total row: row 17 reads 'Total' in Club. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-7637",
-    "outcome": "wrong",
-    "parsed": "count(rows)",
+    "outcome": "refused",
     "question": "How many rows are there?",
     "stratum": "supported",
     "table": "203_581",
@@ -12435,10 +12377,9 @@
     ]
    },
    {
-    "answer": "24",
+    "detail": "calculation: This looks like a table with a total row: row 24 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-8106",
-    "outcome": "wrong",
-    "parsed": "count(rows)",
+    "outcome": "refused",
     "question": "How many rows are there?",
     "stratum": "supported",
     "table": "203_165",
@@ -12502,10 +12443,9 @@
     ]
    },
    {
-    "answer": "292",
+    "detail": "calculation: This looks like a table with a total row: row 13's Games equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-8132",
-    "outcome": "wrong",
-    "parsed": "sum(Games)",
+    "outcome": "refused",
     "question": "Total Games",
     "stratum": "supported",
     "table": "204_914",
@@ -14458,10 +14398,9 @@
     ]
    },
    {
-    "answer": "98",
+    "detail": "calculation: This looks like a table with a total row: row 24 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-9866",
-    "outcome": "wrong",
-    "parsed": "sum(Gold)",
+    "outcome": "refused",
     "question": "Total Gold",
     "stratum": "supported",
     "table": "203_165",
@@ -15440,10 +15379,9 @@
     ]
    },
    {
-    "answer": "17",
+    "detail": "calculation: This looks like a table with a total row: row 17 reads 'Total' in Club. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-10441",
-    "outcome": "wrong",
-    "parsed": "count(rows)",
+    "outcome": "refused",
     "question": "How many rows are there?",
     "stratum": "supported",
     "table": "203_581",
@@ -15733,10 +15671,9 @@
     ]
    },
    {
-    "answer": "6",
+    "detail": "calculation: This looks like a table with a total row: row 38 reads 'Totals' in Year. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-10633",
-    "outcome": "wrong",
-    "parsed": "sum(Tied)",
+    "outcome": "refused",
     "question": "Total Tied",
     "stratum": "supported",
     "table": "204_419",
@@ -15921,10 +15858,9 @@
     ]
    },
    {
-    "answer": "9",
+    "detail": "calculation: This looks like a table with a total row: row 9 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-10733",
-    "outcome": "wrong",
-    "parsed": "count(rows)",
+    "outcome": "refused",
     "question": "How many rows are there?",
     "stratum": "supported",
     "table": "204_211",
@@ -16176,10 +16112,9 @@
     ]
    },
    {
-    "answer": "17",
+    "detail": "calculation: This looks like a table with a total row: row 17 reads 'Total' in Club. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-10880",
-    "outcome": "wrong",
-    "parsed": "count(rows)",
+    "outcome": "refused",
     "question": "How many rows are there?",
     "stratum": "supported",
     "table": "203_581",
@@ -17003,10 +16938,9 @@
     ]
    },
    {
-    "answer": "164.0",
+    "detail": "calculation: This looks like a table with a total row: row 14's Sacks equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-11343",
-    "outcome": "wrong",
-    "parsed": "sum(Sacks)",
+    "outcome": "refused",
     "question": "Total Sacks",
     "stratum": "supported",
     "table": "204_756",
@@ -18142,10 +18076,9 @@
     ]
    },
    {
-    "answer": "128",
+    "detail": "calculation: This looks like a table with a total row: row 19 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-11982",
-    "outcome": "wrong",
-    "parsed": "sum(Total)",
+    "outcome": "refused",
     "question": "Total Total",
     "stratum": "supported",
     "table": "204_311",
@@ -18633,10 +18566,9 @@
     ]
    },
    {
-    "answer": "18",
+    "detail": "calculation: This looks like a table with a total row: row 18 reads 'Total' in Opponent. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-12398",
-    "outcome": "wrong",
-    "parsed": "count(rows)",
+    "outcome": "refused",
     "question": "How many rows are there?",
     "stratum": "supported",
     "table": "203_506",
@@ -19006,10 +18938,9 @@
     ]
    },
    {
-    "answer": "6.6",
+    "detail": "calculation: This looks like a table with a total row: row 10 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-12641",
-    "outcome": "wrong",
-    "parsed": "mean(Gold)",
+    "outcome": "refused",
     "question": "Average Gold",
     "stratum": "supported",
     "table": "204_785",
@@ -19540,10 +19471,9 @@
     ]
    },
    {
-    "answer": "466",
+    "detail": "calculation: This looks like a table with a total row: row 15 reads 'Total' in Season. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
     "id": "nt-12905",
-    "outcome": "wrong",
-    "parsed": "sum(Matches)",
+    "outcome": "refused",
     "question": "Total Matches",
     "stratum": "supported",
     "table": "204_235",
@@ -21322,40 +21252,40 @@
    "documented wording, supported": {
     "accuracy": {
      "ci95": [
-      0.7567,
-      0.8241
+      0.7548,
+      0.8224
      ],
-     "count": 439,
+     "count": 438,
      "n": 554,
-     "rate": 0.7924
+     "rate": 0.7906
     },
     "answered_correctly": {
      "ci95": [
-      0.7567,
-      0.8241
+      0.7548,
+      0.8224
      ],
-     "count": 439,
+     "count": 438,
      "n": 554,
-     "rate": 0.7924
+     "rate": 0.7906
     },
     "n": 554,
     "refusal": {
      "ci95": [
-      0.1192,
-      0.1781
+      0.1742,
+      0.2414
      ],
-     "count": 81,
+     "count": 114,
      "n": 554,
-     "rate": 0.1462
+     "rate": 0.2058
     },
     "wrong": {
      "ci95": [
-      0.0442,
-      0.0845
+      0.001,
+      0.0131
      ],
-     "count": 34,
+     "count": 2,
      "n": 554,
-     "rate": 0.0614
+     "rate": 0.0036
     }
    },
    "verbatim, all": {
@@ -33467,19 +33397,10 @@
       "wrong_groups": []
      },
      "tablebeam": {
-      "missing_groups": [
-       "false",
-       "true"
-      ],
-      "status": "wrong",
-      "unexpected_groups": [
-       "0",
-       "1"
-      ],
-      "wrong_groups": [
-       "false",
-       "true"
-      ]
+      "missing_groups": [],
+      "status": "exact",
+      "unexpected_groups": [],
+      "wrong_groups": []
      }
     },
     "spec": "count(rows) by meuble",
@@ -33498,12 +33419,8 @@
       "true": "100"
      },
      "tablebeam": {
-      "extra_groups": [
-       "0",
-       "1"
-      ],
-      "false": "missing",
-      "true": "missing"
+      "false": "100",
+      "true": "100"
      }
     }
    },
@@ -34256,12 +34173,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 10 reads 'Total' in Department. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Senators)",
@@ -34277,7 +34190,7 @@
       "(all rows)": "72"
      },
      "tablebeam": {
-      "(all rows)": "72"
+      "refused": "calculation: This looks like a table with a total row: row 10 reads 'Total' in Department. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -34684,12 +34597,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 10 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Gold)",
@@ -34705,7 +34614,7 @@
       "(all rows)": "66"
      },
      "tablebeam": {
-      "(all rows)": "66"
+      "refused": "calculation: This looks like a table with a total row: row 10 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -35012,10 +34921,8 @@
       "wrong_groups": []
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "exact",
-      "unexpected_groups": [],
-      "wrong_groups": []
+      "detail": "calculation: This looks like a table with a total row: row 31 reads 'Total' in Type. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "count(rows)",
@@ -35031,7 +34938,7 @@
       "(all rows)": "46"
      },
      "tablebeam": {
-      "(all rows)": "46"
+      "refused": "calculation: This looks like a table with a total row: row 31 reads 'Total' in Type. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -35886,12 +35793,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 10's Passes Defended equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Passes Defended)",
@@ -35907,7 +35810,7 @@
       "(all rows)": "10"
      },
      "tablebeam": {
-      "(all rows)": "10"
+      "refused": "calculation: This looks like a table with a total row: row 10's Passes Defended equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -36220,12 +36123,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 14 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Total)",
@@ -36241,7 +36140,7 @@
       "(all rows)": "72"
      },
      "tablebeam": {
-      "(all rows)": "72"
+      "refused": "calculation: This looks like a table with a total row: row 14 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -37052,12 +36951,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 4 reads 'Total' in Season. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "max(Total\nGoals)",
@@ -37073,7 +36968,7 @@
       "(all rows)": "'7'"
      },
      "tablebeam": {
-      "(all rows)": "12"
+      "refused": "calculation: This looks like a table with a total row: row 4 reads 'Total' in Season. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -37934,12 +37829,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 9 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Total)",
@@ -37955,7 +37846,7 @@
       "(all rows)": "54"
      },
      "tablebeam": {
-      "(all rows)": "54"
+      "refused": "calculation: This looks like a table with a total row: row 9 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -38220,12 +38111,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 10's Games equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Games)",
@@ -38241,7 +38128,7 @@
       "(all rows)": "254"
      },
      "tablebeam": {
-      "(all rows)": "254"
+      "refused": "calculation: This looks like a table with a total row: row 10's Games equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -38320,12 +38207,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 24 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Gold)",
@@ -38341,7 +38224,7 @@
       "(all rows)": "32"
      },
      "tablebeam": {
-      "(all rows)": "32"
+      "refused": "calculation: This looks like a table with a total row: row 24 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -39070,12 +38953,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 8 reads 'Total' in Nation. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "count(rows)",
@@ -39091,7 +38970,7 @@
       "(all rows)": "8"
      },
      "tablebeam": {
-      "(all rows)": "8"
+      "refused": "calculation: This looks like a table with a total row: row 8 reads 'Total' in Nation. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -40178,12 +40057,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 15 reads 'Total' in Season. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Matches)",
@@ -40199,7 +40074,7 @@
       "(all rows)": "466"
      },
      "tablebeam": {
-      "(all rows)": "466"
+      "refused": "calculation: This looks like a table with a total row: row 15 reads 'Total' in Season. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -40554,12 +40429,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 7 reads 'Total' in Ethnicity. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "count(rows)",
@@ -40575,7 +40446,7 @@
       "(all rows)": "7"
      },
      "tablebeam": {
-      "(all rows)": "7"
+      "refused": "calculation: This looks like a table with a total row: row 7 reads 'Total' in Ethnicity. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -40932,12 +40803,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 14 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Gold)",
@@ -40953,7 +40820,7 @@
       "(all rows)": "18"
      },
      "tablebeam": {
-      "(all rows)": "18"
+      "refused": "calculation: This looks like a table with a total row: row 14 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -43932,12 +43799,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 8 reads 'Totals' in Year. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Laps)",
@@ -43953,7 +43816,7 @@
       "(all rows)": "2260"
      },
      "tablebeam": {
-      "(all rows)": "2260"
+      "refused": "calculation: This looks like a table with a total row: row 8 reads 'Totals' in Year. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -45418,12 +45281,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 21 reads 'TOTALS' in Name. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(UEFA Cup)",
@@ -45439,7 +45298,7 @@
       "(all rows)": "10"
      },
      "tablebeam": {
-      "(all rows)": "10"
+      "refused": "calculation: This looks like a table with a total row: row 21 reads 'TOTALS' in Name. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -45472,12 +45331,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 7 reads 'Total' in Year. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Punts Returned for Touchdown)",
@@ -45493,7 +45348,7 @@
       "(all rows)": "4"
      },
      "tablebeam": {
-      "(all rows)": "4"
+      "refused": "calculation: This looks like a table with a total row: row 7 reads 'Total' in Year. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -45526,12 +45381,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 7 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Total)",
@@ -45547,7 +45398,7 @@
       "(all rows)": "54"
      },
      "tablebeam": {
-      "(all rows)": "54"
+      "refused": "calculation: This looks like a table with a total row: row 7 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -45890,12 +45741,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 16 reads 'Total' in Jurisdiction. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "count(rows)",
@@ -45911,7 +45758,7 @@
       "(all rows)": "16"
      },
      "tablebeam": {
-      "(all rows)": "16"
+      "refused": "calculation: This looks like a table with a total row: row 16 reads 'Total' in Jurisdiction. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -46264,12 +46111,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 14's Tackles equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "mean(Tackles)",
@@ -46285,7 +46128,7 @@
       "(all rows)": "83.57142857142857"
      },
      "tablebeam": {
-      "(all rows)": "83.57142857142857"
+      "refused": "calculation: This looks like a table with a total row: row 14's Tackles equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -47378,12 +47221,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 10 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Total)",
@@ -47399,7 +47238,7 @@
       "(all rows)": "72"
      },
      "tablebeam": {
-      "(all rows)": "72"
+      "refused": "calculation: This looks like a table with a total row: row 10 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -47990,12 +47829,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 17 reads 'Total' in Club. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "count(rows)",
@@ -48011,7 +47846,7 @@
       "(all rows)": "17"
      },
      "tablebeam": {
-      "(all rows)": "17"
+      "refused": "calculation: This looks like a table with a total row: row 17 reads 'Total' in Club. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -48612,12 +48447,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 24 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "count(rows)",
@@ -48633,7 +48464,7 @@
       "(all rows)": "24"
      },
      "tablebeam": {
-      "(all rows)": "24"
+      "refused": "calculation: This looks like a table with a total row: row 24 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -48712,12 +48543,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 13's Games equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Games)",
@@ -48733,7 +48560,7 @@
       "(all rows)": "292"
      },
      "tablebeam": {
-      "(all rows)": "292"
+      "refused": "calculation: This looks like a table with a total row: row 13's Games equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -50926,12 +50753,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 24 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Gold)",
@@ -50947,7 +50770,7 @@
       "(all rows)": "98"
      },
      "tablebeam": {
-      "(all rows)": "98"
+      "refused": "calculation: This looks like a table with a total row: row 24 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -52072,12 +51895,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 17 reads 'Total' in Club. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "count(rows)",
@@ -52093,7 +51912,7 @@
       "(all rows)": "17"
      },
      "tablebeam": {
-      "(all rows)": "17"
+      "refused": "calculation: This looks like a table with a total row: row 17 reads 'Total' in Club. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -52488,12 +52307,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 38 reads 'Totals' in Year. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Tied)",
@@ -52509,7 +52324,7 @@
       "(all rows)": "6"
      },
      "tablebeam": {
-      "(all rows)": "6"
+      "refused": "calculation: This looks like a table with a total row: row 38 reads 'Totals' in Year. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -52772,12 +52587,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 9 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "count(rows)",
@@ -52793,7 +52604,7 @@
       "(all rows)": "9"
      },
      "tablebeam": {
-      "(all rows)": "9"
+      "refused": "calculation: This looks like a table with a total row: row 9 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -53150,12 +52961,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 17 reads 'Total' in Club. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "count(rows)",
@@ -53171,7 +52978,7 @@
       "(all rows)": "17"
      },
      "tablebeam": {
-      "(all rows)": "17"
+      "refused": "calculation: This looks like a table with a total row: row 17 reads 'Total' in Club. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -54278,12 +54085,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 14's Sacks equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Sacks)",
@@ -54299,7 +54102,7 @@
       "(all rows)": "164.0"
      },
      "tablebeam": {
-      "(all rows)": "164.0"
+      "refused": "calculation: This looks like a table with a total row: row 14's Sacks equals the sum of the other rows. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -55902,12 +55705,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 19 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Total)",
@@ -55923,7 +55722,7 @@
       "(all rows)": "128"
      },
      "tablebeam": {
-      "(all rows)": "128"
+      "refused": "calculation: This looks like a table with a total row: row 19 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -56466,12 +56265,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 18 reads 'Total' in Opponent. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "count(rows)",
@@ -56487,7 +56282,7 @@
       "(all rows)": "18"
      },
      "tablebeam": {
-      "(all rows)": "18"
+      "refused": "calculation: This looks like a table with a total row: row 18 reads 'Total' in Opponent. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -56934,12 +56729,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 10 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "mean(Gold)",
@@ -56955,7 +56746,7 @@
       "(all rows)": "6.6"
      },
      "tablebeam": {
-      "(all rows)": "6.6"
+      "refused": "calculation: This looks like a table with a total row: row 10 reads 'Total' in Rank. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
@@ -57634,12 +57425,8 @@
       ]
      },
      "tablebeam": {
-      "missing_groups": [],
-      "status": "wrong",
-      "unexpected_groups": [],
-      "wrong_groups": [
-       "(all rows)"
-      ]
+      "detail": "calculation: This looks like a table with a total row: row 15 reads 'Total' in Season. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again.",
+      "status": "refused"
      }
     },
     "spec": "sum(Matches)",
@@ -57655,7 +57442,7 @@
       "(all rows)": "466"
      },
      "tablebeam": {
-      "(all rows)": "466"
+      "refused": "calculation: This looks like a table with a total row: row 15 reads 'Total' in Season. Including it would count everything twice. Remove that row, or leave it out with a condition in Build a calculation, then calculate again."
      }
     }
    },
