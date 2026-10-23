@@ -242,3 +242,6 @@ web/dist/
 web/__pycache__/
 .vercel
 node_modules/
+
+# Pinned evaluation inputs
+!eval/inputs/**/*.csv

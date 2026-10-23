@@ -5,11 +5,12 @@ from __future__ import annotations
 import csv
 import math
 import operator
+import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from io import StringIO
-from numbers import Real
+from numbers import Integral, Real
 from typing import Any
 
 import pandas as pd
@@ -35,6 +36,7 @@ _COMPARISONS = {
     "le": operator.le,
 }
 _OPERATIONS = {"count", "sum", "mean", "median", "min", "max"}
+_TOTAL_LABEL = r"(grand\s+)?totals?\W*"
 
 
 def _validate_table(df: pd.DataFrame) -> None:
@@ -141,6 +143,41 @@ def filter_dataframe(df: pd.DataFrame, filters: list[FilterSpec]) -> pd.DataFram
     return df.loc[mask].copy()
 
 
+def _row_name(index: Any) -> str:
+    # Loaded tables keep their row positions as the index, also after filtering.
+    return f"row {index + 1}" if isinstance(index, Integral) else f"row {index!r}"
+
+
+def _total_row(df: pd.DataFrame, measure: pd.Series | None) -> str | None:
+    """Describe a row that totals the others, as copied tables often end with.
+
+    A row qualifies when a text cell reads "Total", "Totals" or "Grand total",
+    or when its measure equals the sum of every other row's measure and at
+    least three other rows are non-zero, so a short column such as medal
+    counts 2, 1, 1, 0 is not mistaken for one.
+    """
+    for column in df.columns:
+        series = df[column]
+        if not (pd.api.types.is_string_dtype(series.dtype) or series.dtype == object):
+            continue
+        labels = series.astype("string").str.strip().str.fullmatch(_TOTAL_LABEL, flags=re.IGNORECASE)
+        matches = labels.fillna(False).to_numpy(dtype=bool)
+        if matches.any():
+            index = series.index[int(matches.argmax())]
+            return f"{_row_name(index)} reads {series[index].strip()!r} in {column}"
+    if measure is None:
+        return None
+    values = measure.dropna()
+    if (values != 0).sum() < 4:
+        return None
+    numbers = values.astype(object).tolist()
+    total = sum(numbers)
+    for index, value in zip(values.index, numbers):
+        if value and (2 * value == total if isinstance(total, int) else math.isclose(2 * value, total, rel_tol=1e-9)):
+            return f"{_row_name(index)}'s {measure.name} equals the sum of the other rows"
+    return None
+
+
 def group_result_column(group_by: str) -> str:
     """Return the grouping label without colliding with ``value`` or ``rows``."""
 
@@ -157,6 +194,8 @@ def summarize_dataframe(
 
     ``count`` always counts rows. Other operations require a real numeric
     column, ignore missing values, and return null for all-missing inputs.
+    An ungrouped calculation other than ``min`` refuses a table that looks
+    like it contains its own total row.
     ``rows`` counts all contributing rows, including missing numeric values.
     Groups sort by descending value, null last, with first appearance breaking
     ties. Empty grouped results retain the same columns; ungrouped results have
@@ -181,6 +220,13 @@ def summarize_dataframe(
         selected = pd.Series(1, index=df.index, dtype="int64")
 
     if group_by is None:
+        # A grouped answer shows a total row as its own group; one number hides it.
+        if operation != "min" and (total_row := _total_row(df, None if operation == "count" else df[column])):
+            raise TableAnalysisError(
+                f"This looks like a table with a total row: {total_row}. Including it would count "
+                "everything twice. Remove that row, or leave it out with a condition in Build a "
+                "calculation, then calculate again."
+            )
         if operation == "count":
             value = len(df)
         elif not selected.notna().any():

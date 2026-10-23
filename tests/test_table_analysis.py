@@ -33,6 +33,38 @@ def test_count_needs_no_measure_and_includes_missing(frame):
     assert summarize_dataframe(frame, "count", "team").iloc[0]["value"] == 5
 
 
+@pytest.fixture
+def medal_table():
+    # Tables copied from web pages often close with their own total row.
+    return pd.DataFrame({"Nation": ["Kenya", "Ethiopia", "Uganda", "Total"], "Gold": [4, 3, 2, 9]})
+
+
+@pytest.mark.parametrize("operation", ["count", "sum", "mean", "median", "max"])
+def test_a_labelled_total_row_is_refused_rather_than_counted_twice(medal_table, operation):
+    with pytest.raises(TableAnalysisError, match="row 4 reads 'Total' in Nation"):
+        summarize_dataframe(medal_table, operation, None if operation == "count" else "Gold")
+
+
+def test_total_rows_leave_min_groups_and_filtered_rows_alone(medal_table):
+    assert summarize_dataframe(medal_table, "min", "Gold").loc[0, "value"] == 2
+    grouped = summarize_dataframe(medal_table, "sum", "Gold", "Nation")
+    assert grouped.set_index("Nation").loc["Total", "value"] == 9
+    without = filter_dataframe(medal_table, [FilterSpec("Nation", "ne", "Total")])
+    assert summarize_dataframe(without, "sum", "Gold").loc[0, "value"] == 9
+
+
+def test_an_unlabelled_row_that_sums_the_others_is_refused():
+    career = pd.DataFrame({"Season": ["2009", "2010", "2011", "2012", "Career"], "Games": [30, 32, 33, 32, 127]})
+    with pytest.raises(TableAnalysisError, match="row 5's Games equals the sum of the other rows"):
+        summarize_dataframe(career, "sum", "Games")
+
+
+@pytest.mark.parametrize("values", [[2, 1, 1, 0], [1, 1, 2]])
+def test_short_columns_that_happen_to_balance_are_not_total_rows(values):
+    frame = pd.DataFrame({"Gold": values})
+    assert summarize_dataframe(frame, "sum", "Gold").loc[0, "value"] == sum(values)
+
+
 @pytest.mark.parametrize("operation", ["sum", "mean", "median", "min", "max"])
 def test_all_missing_numeric_results_are_null(operation):
     source = pd.DataFrame({"sales": pd.Series([None, None], dtype="Float64")})

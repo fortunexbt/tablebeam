@@ -68,6 +68,16 @@ def test_written_out_arithmetic_matches_the_result(engine, dist):
     assert len(found["rows"]) == found["count"]
 
 
+def test_true_false_groups_keep_their_labels(engine):
+    # Montpellier's rent-control file groups by a TRUE/FALSE "meuble" column.
+    engine.load(b"meuble,prix\nFALSE,12.7\nTRUE,15.1\nFALSE,13.0\n", "furnished")
+    answer = engine.ask("Count rows by meuble")
+    assert sorted(row["group"] for row in answer["result"]) == ["False", "True"]
+    first = engine.evidence(0)
+    assert first["group"] in {"False", "True"}
+    assert {row["cells"][0] for row in first["rows"]} == {first["group"]}
+
+
 def test_an_unsupported_question_asks_for_the_model_instead_of_guessing(engine, dist):
     engine.load((dist / "datasets" / "penguins.csv").read_bytes(), "Palmer penguins")
     assert engine.ask("which penguins are heavier than 5000 g?")["kind"] == "needs_ai"
