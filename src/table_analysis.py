@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 from io import StringIO
-from numbers import Real
+from numbers import Integral, Real
 from typing import Any
 
 import pandas as pd
@@ -143,6 +143,11 @@ def filter_dataframe(df: pd.DataFrame, filters: list[FilterSpec]) -> pd.DataFram
     return df.loc[mask].copy()
 
 
+def _row_name(index: Any) -> str:
+    # Loaded tables keep their row positions as the index, also after filtering.
+    return f"row {index + 1}" if isinstance(index, Integral) else f"row {index!r}"
+
+
 def _total_row(df: pd.DataFrame, measure: pd.Series | None) -> str | None:
     """Describe a row that totals the others, as copied tables often end with.
 
@@ -159,7 +164,7 @@ def _total_row(df: pd.DataFrame, measure: pd.Series | None) -> str | None:
         matches = labels.fillna(False).to_numpy(dtype=bool)
         if matches.any():
             index = series.index[int(matches.argmax())]
-            return f"row {index + 1} reads {series[index].strip()!r} in {column}"
+            return f"{_row_name(index)} reads {series[index].strip()!r} in {column}"
     if measure is None:
         return None
     values = measure.dropna()
@@ -169,7 +174,7 @@ def _total_row(df: pd.DataFrame, measure: pd.Series | None) -> str | None:
     total = sum(numbers)
     for index, value in zip(values.index, numbers):
         if value and (2 * value == total if isinstance(total, int) else math.isclose(2 * value, total, rel_tol=1e-9)):
-            return f"row {index + 1}'s {measure.name} equals the sum of the other rows"
+            return f"{_row_name(index)}'s {measure.name} equals the sum of the other rows"
     return None
 
 
