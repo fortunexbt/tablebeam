@@ -437,8 +437,7 @@ button:active, .file:active span { transform: scale(0.97); }
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
   background: var(--beam-wash);
-  border-left: 3px solid var(--beam-edge);
-  border-radius: 0 6px 6px 0;
+  border-radius: 6px;
 }
 
 .scroll {
