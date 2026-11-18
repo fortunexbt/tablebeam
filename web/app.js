@@ -8,6 +8,7 @@ const el = (id) => document.getElementById(id);
 const nodes = {
   runtime: el("runtime"), sources: el("sources"), file: el("file"),
   tableCard: el("table-card"), tableName: el("table-name"), tableShape: el("table-shape"),
+  tableShapeLine: el("table-shape-line"),
   tableParse: el("table-parse"), tableNote: el("table-note"), columns: el("columns"), columnsCaption: el("columns-caption"),
   warnings: el("warnings"), form: el("ask-form"), question: el("question"), submit: el("submit"),
   chips: el("chips"), failure: el("failure"), answer: el("answer"), restated: el("restated"),
@@ -75,23 +76,40 @@ function add(parent, tag, text, className) {
   return node;
 }
 
-function renderRows(table, columns, rows) {
+/* The evidence sheet shows the row's first column, then the measured column, then the
+ * grouping column, then the rest, so the cells that made the number are in view without
+ * scrolling sideways. The download keeps the file's own column order. */
+function renderRows(table, columns, rows, { measure, groupBy }) {
+  const position = (name) => columns.findIndex((column) => column.name === name);
+  const order = [...new Set([0, position(measure), position(groupBy), ...columns.keys()])].filter(
+    (index) => index >= 0,
+  );
+  const role = (index) =>
+    columns[index].name === measure ? "lit" : columns[index].name === groupBy ? "key" : null;
+
   const head = clear(table.tHead ?? table.createTHead()).insertRow();
-  add(head, "th", "#", "idx");
-  for (const column of columns) {
-    add(head, "th", column.friendly, column.numeric ? "num" : null).scope = "col";
+  add(head, "th", "#", measure == null ? "idx lit" : "idx").scope = "col";
+  for (const index of order) {
+    const column = columns[index];
+    const th = add(head, "th", column.friendly, column.numeric ? "num" : null);
+    th.scope = "col";
+    if (role(index)) th.classList.add(role(index));
   }
   const body = clear(table.tBodies[0] ?? table.createTBody());
-  for (const row of rows) {
-    const line = body.insertRow();
-    add(line, "td", row.row, "idx");
-    row.cells.forEach((cell, index) => {
-      const numeric = columns[index]?.numeric;
-      const node = add(line, "td", cell ?? "—", numeric ? "num" : null);
+  rows.forEach((row, line) => {
+    const tr = body.insertRow();
+    tr.style.setProperty("--i", Math.min(line, 24));
+    add(tr, "td", row.row, measure == null ? "idx lit" : "idx");
+    for (const index of order) {
+      const cell = row.cells[index];
+      const node = add(tr, "td", cell ?? "—", columns[index].numeric ? "num" : null);
+      if (role(index)) node.classList.add(role(index));
       if (cell == null) node.classList.add("blank");
-    });
-  }
+    }
+  });
 }
+
+const friendly = (name) => state.table.columns.find((column) => column.name === name)?.friendly ?? name;
 
 function paragraphs(node, text) {
   clear(node);
@@ -111,8 +129,9 @@ function renderTable(dataset, table) {
   const columns = table.columns.length;
   nodes.tableShape.textContent =
     `${table.rows.toLocaleString()} ${table.rows === 1 ? "row" : "rows"} × ${columns} ` +
-    `${columns === 1 ? "column" : "columns"}`;
+    `${columns === 1 ? "column" : "columns"},`;
   nodes.tableParse.textContent = `parsed in ${Math.round(table.ms)} ms`;
+  nodes.tableShapeLine.hidden = false;
   nodes.tableNote.textContent = dataset.note;
 
   clear(nodes.columns);
@@ -152,6 +171,7 @@ async function openTable(dataset, bytes) {
     renderTable(dataset, await engine("load", { bytes, label: dataset.name }));
   } catch (error) {
     nodes.tableCard.hidden = true;
+    nodes.tableShapeLine.hidden = true;
     fail(error.message);
     return;
   }
@@ -226,10 +246,17 @@ async function showEvidence(groupIndex) {
     nodes.groups.querySelector(`[data-index="${groupIndex}"]`)?.setAttribute("aria-pressed", "true");
   }
   nodes.evidenceOf.textContent =
-    evidence.group == null ? "this number" : `${evidence.group_by} = ${evidence.group}`;
+    evidence.group_index == null
+      ? "Rows behind this number"
+      : `Rows where ${friendly(evidence.group_by)} is ${evidence.group ?? "blank"}`;
   nodes.working.textContent = evidence.working ?? "";
   nodes.working.hidden = evidence.working == null;
-  renderRows(nodes.evidence, state.table.columns, evidence.rows);
+  renderRows(nodes.evidence, state.table.columns, evidence.rows, {
+    measure: evidence.measure,
+    groupBy: evidence.group_by,
+  });
+  nodes.evidence.removeAttribute("data-fresh");
+  requestAnimationFrame(() => nodes.evidence.setAttribute("data-fresh", ""));
   nodes.evidenceCaption.textContent =
     evidence.rows.length < evidence.count
       ? `First ${evidence.rows.length} of ${evidence.count.toLocaleString()} rows used. Every one of the ${evidence.count.toLocaleString()} is in the calculation.`
@@ -295,18 +322,19 @@ async function start() {
     button.setAttribute("aria-pressed", "false");
     button.onclick = () => openBundled(dataset);
   }
-  nodes.credits.append("Data: ");
+  nodes.credits.append("Bundled data from ");
   catalog.forEach((dataset, index) => {
-    if (index) nodes.credits.append(" · ");
+    if (index) nodes.credits.append(" and ");
     add(nodes.credits, "a", dataset.name).href = dataset.url;
-    nodes.credits.append(`, ${dataset.credit}`);
+    nodes.credits.append(` (${dataset.credit})`);
   });
+  nodes.credits.append(".");
 
   try {
     const versions = await ready;
     nodes.runtime.dataset.state = "done";
     nodes.runtime.textContent =
-      `CPython ${versions.python} · pandas ${versions.pandas} · WebAssembly, in this tab`;
+      `CPython ${versions.python} and pandas ${versions.pandas} in WebAssembly`;
   } catch (error) {
     nodes.runtime.dataset.state = "done";
     nodes.runtime.textContent = `The Python runtime did not start: ${error.message}`;
